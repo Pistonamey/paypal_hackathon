@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Set REACT_APP_API_URL in the Netlify UI to your Heroku app URL.
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
