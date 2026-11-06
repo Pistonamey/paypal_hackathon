@@ -5,6 +5,10 @@ and receives messages at      POST {base}        (JSON-RPC 2.0, method "message/
 
 Commerce payloads travel as A2A DataParts: {"kind": "data", "data": {"action": ..., ...}}
 with an optional TextPart carrying the human-readable message shown in the live feed.
+
+AP2 documents (keys starting with "ap2.", e.g. "ap2.checkout", "ap2.mandates.PaymentMandateSdJwt",
+"ap2.PaymentReceipt") come back from a merchant as an A2A Task artifact, the way Google's AP2 samples
+return them; the agent's words go in the task's status message.
 """
 import uuid
 from typing import Any, Callable
@@ -12,7 +16,7 @@ from typing import Any, Callable
 import httpx
 
 A2A_PROTOCOL_VERSION = "0.3.0"
-AP2_EXTENSION_URI = "https://github.com/google-agentic-commerce/ap2/tree/v0.1"
+AP2_EXTENSION_URI = "https://github.com/google-agentic-commerce/ap2/v1"  # AP2 v0.2, as in Google's samples
 
 # Tests swap this for an in-process transport. In production it is plain HTTP,
 # so any third-party seller agent at any URL can take part.
@@ -23,7 +27,7 @@ class A2AError(Exception):
     pass
 
 
-def agent_card(*, name: str, description: str, url: str, skills: list[dict], public_key: str,
+def agent_card(*, name: str, description: str, url: str, skills: list[dict], signing: dict,
                role: str) -> dict:
     return {
         "protocolVersion": A2A_PROTOCOL_VERSION,
@@ -37,15 +41,17 @@ def agent_card(*, name: str, description: str, url: str, skills: list[dict], pub
             "pushNotifications": False,
             "extensions": [{
                 "uri": AP2_EXTENSION_URI,
-                "description": "Agent Payments Protocol: signed intent, cart and payment mandates",
-                "required": True,
+                "description": "Agent Payments Protocol v0.2: SD-JWT checkout and payment mandates, "
+                               "merchant-signed checkout JWT, signed receipts",
+                "required": role == "merchant",
                 "params": {"roles": [role]},
             }],
         },
         "defaultInputModes": ["application/json", "text/plain"],
         "defaultOutputModes": ["application/json", "text/plain"],
         "skills": skills,
-        "signing": {"alg": "Ed25519", "publicKey": public_key},
+        # Public keys (JWK, ES256) others use to check what this agent signs.
+        "signing": signing,
     }
 
 
@@ -59,15 +65,36 @@ def make_message(data: dict, text: str | None = None, role: str = "user", contex
     return msg
 
 
-def split_message(message: dict) -> tuple[dict, str]:
-    data: dict[str, Any] = {}
-    text = ""
-    for part in message.get("parts", []):
+def make_task(data: dict, text: str | None = None, context_id: str | None = None) -> dict:
+    """A completed A2A Task: AP2 documents as an artifact, everything else in the status message."""
+    docs = {k: v for k, v in data.items() if k.startswith("ap2.")}
+    rest = {k: v for k, v in data.items() if not k.startswith("ap2.")}
+    task = {
+        "kind": "task", "id": uuid.uuid4().hex, "contextId": context_id or uuid.uuid4().hex,
+        "status": {"state": "completed", "message": make_message(rest, text, "agent", context_id)},
+        "artifacts": [{"artifactId": uuid.uuid4().hex, "name": "ap2", "parts": [{"kind": "data", "data": docs}]}],
+    }
+    return task
+
+
+def _parts(parts: list[dict], data: dict, text: str) -> str:
+    for part in parts or []:
         if part.get("kind") == "data":
             data.update(part.get("data") or {})
         elif part.get("kind") == "text":
             text += part.get("text", "")
-    return data, text
+    return text
+
+
+def split_message(message: dict) -> tuple[dict, str]:
+    """Data and text from an A2A Message, or from a Task (its status message plus its artifacts)."""
+    data: dict[str, Any] = {}
+    if message.get("kind") == "task":
+        text = _parts(((message.get("status") or {}).get("message") or {}).get("parts"), data, "")
+        for artifact in message.get("artifacts") or []:
+            _parts(artifact.get("parts"), data, "")
+        return data, text
+    return data, _parts(message.get("parts"), data, "")
 
 
 def rpc_result(req_id: Any, message: dict) -> dict:

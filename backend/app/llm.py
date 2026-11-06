@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from . import config
 
-log = logging.getLogger("mandate.llm")
+log = logging.getLogger("procuro.llm")
 
 _client = None
 
@@ -16,7 +16,9 @@ def _get_client():
     if _client is None:
         from anthropic import AsyncAnthropic
 
-        _client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+        workspace = getattr(config, "ANTHROPIC_WORKSPACE_ID", "")
+        headers = {"anthropic-workspace-id": workspace} if workspace else None
+        _client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY, default_headers=headers)
     return _client
 
 
@@ -36,7 +38,7 @@ async def ask_json(
     prompt: str,
     fallback: Callable[[], dict],
     images: list[tuple[str, str]] | None = None,
-    max_tokens: int = 800,
+    max_tokens: int = 1024,
 ) -> dict[str, Any]:
     """Ask Claude for a JSON object. `images` is a list of (media_type, base64_data).
 
@@ -52,7 +54,7 @@ async def ask_json(
     try:
         resp = await _get_client().messages.create(
             model=config.ANTHROPIC_MODEL,
-            max_tokens=max_tokens,
+            max_tokens=max(max_tokens, 1024),
             system=system,
             messages=[{"role": "user", "content": content}],
         )

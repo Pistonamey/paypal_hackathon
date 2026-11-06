@@ -12,7 +12,7 @@ os.environ.update({"PAYPAL_MODE": "mock", "ANTHROPIC_API_KEY": "", "CHANNEL3_API
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 
-from app import a2a, signing  # noqa: E402
+from app import a2a, mandates  # noqa: E402
 from app.main import app  # noqa: E402
 
 transport = httpx.ASGITransport(app=app)
@@ -39,7 +39,11 @@ async def negotiate_and_hold(c: httpx.AsyncClient) -> dict:
     assert order["sellers"]["packright"]["status"] == "dropped_deadline"
     assert order["winner"]["total"] <= 600
     assert order["winner"]["needs_explicit_approval"] is True
-    assert signing.verify(order["cart_mandate"], order["sellers"][order["winner"]["seller_id"]]["public_key"])
+    # The seller's AP2 checkout is signed with the key in its agent card.
+    sid = order["winner"]["seller_id"]
+    checkout = order["ap2"]["checkout"]
+    assert mandates.verify_receipt(checkout["checkout_jwt"], mandates.jwk_from(order["sellers"][sid]["jwk"]))
+    assert checkout["payload"]["merchant"]["id"] == sid
 
     r = await c.post(f"/api/orders/{order_id}/approve")
     assert r.status_code == 200, r.text
@@ -99,13 +103,67 @@ async def test_seller_rejects_unsigned_release():
     async with client() as c:
         order = await negotiate_and_hold(c)
         sid = order["winner"]["seller_id"]
-        forged = {"type": "release_mandate", "id": "x", "issued_at": 0, "signer": "buyer:mandate",
-                  "payload": {"capture_amount": 1}, "signature": "AAAA", "alg": "Ed25519"}
+        auth = order["paypal"]["authorization_id"]
+        # Signed by the seller's own key instead of the buying agent's: refused.
+        forged = mandates._sign(f"seller:{sid}", {"authorization_id": auth, "capture_amount": 1},
+                                mandates.RELEASE_TYP)
+        for bad in (None, "not-a-jwt", forged):
+            with pytest.raises(a2a.A2AError):
+                await a2a.send(f"http://testserver/agents/{sid}",
+                               {"action": "release", "order_id": order["id"], "release": bad})
+        # Correctly signed, but for a different hold: refused too.
+        other = mandates.release_instruction({"authorization_id": "AUTH-OTHER", "capture_amount": 1})
         with pytest.raises(a2a.A2AError):
             await a2a.send(f"http://testserver/agents/{sid}",
-                           {"action": "release", "order_id": order["id"], "release_mandate": forged})
+                           {"action": "release", "order_id": order["id"], "release": other})
 
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.mark.anyio
+async def test_settling_at_zero_voids_the_hold_instead_of_capturing_nothing():
+    """PayPal rejects a 0.00 capture (CANNOT_BE_ZERO_OR_NEGATIVE), so paying nothing must void the hold."""
+    from app import analytics, buyer, schedule, timeline
+    from app.store import store
+    async with client() as c:
+        held = await negotiate_and_hold(c)
+        order = store.get_order(held["id"])
+        reply = await buyer._release(order, 0.0, "Nothing usable arrived.")
+        assert reply == {"action": "voided", "captured": 0.0, "released": held["paypal"]["authorized_amount"]}
+        assert order["paypal"]["voided"] and order["paypal"]["captured"] == 0.0
+        order["status"] = "settled"
+        buyer._save(order)
+        state = (await c.get(f"/api/orders/{held['id']}")).json()
+        assert any("voided" in m["text"] for m in state["messages"])
+        # Nothing reads as still held, and the timeline says the hold was voided.
+        row, _, money = analytics._rows_for_order(store.get_order(held["id"]))
+        assert row["held"] == 0
+        assert not any(e["type"] == "Paid to seller" for e in money)
+        tl = timeline.build(store.get_order(held["id"]))
+        names = [t["name"] for g in tl["tasks"] for t in g["children"]]
+        assert any(n.startswith("Hold voided") for n in names)
+        sid = held["winner"]["seller_id"]
+        assert schedule.bookings(sid)[held["id"]]["status"] == "delivered"
+
+
+@pytest.mark.anyio
+async def test_sellers_that_lose_are_told_and_no_conversation_is_left_open():
+    async with client() as c:
+        held = await negotiate_and_hold(c)
+        state = (await c.get(f"/api/orders/{held['id']}")).json()
+        winner = held["winner"]["seller_id"]
+        for sid, entry in state["order"]["sellers"].items():
+            if sid == winner:
+                continue
+            assert entry["status"] not in ("requested", "negotiating", "agreed"), (sid, entry["status"])
+        losers = [s for s, e in state["order"]["sellers"].items() if e["status"] == "not_picked"]
+        assert losers, "at least one seller agreed and lost in this scenario"
+        for sid in losers:
+            to_it = [m for m in state["messages"] if m["from"] == "buyer" and m.get("to") == sid]
+            assert "gone with another seller" in to_it[-1]["text"]
+            assert any(m["from"] == sid and m["data"].get("action") == "closed" for m in state["messages"])
+        # Seller replies before the pick never claim the order is confirmed.
+        assert not any("Deal." == m["text"].strip() for m in state["messages"])

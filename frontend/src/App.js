@@ -1,14 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import { agentName, money, shortDate } from "./format";
+import Negotiation from "./Negotiation";
+import Receipt from "./Receipt";
+import { ShareOrder, useWallet, WalletCard } from "./PayPal";
+import { money, shortDate } from "./format";
+import { BoardSkeleton, Busy, CalendarSkeleton, DashboardSkeleton, GanttSkeleton, HistorySkeleton,
+  OrderSkeleton, Spinner, Stepper } from "./ui";
+
+// AG Studio is large, so the dashboard only loads when it is opened.
+const Dashboard = lazy(() => import("./dashboard/Dashboard"));
+// Bryntum is large too: the calendar and timeline load on first use.
+const DeliveryCalendar = lazy(() => import("./bryntum/DeliveryCalendar"));
+const Timeline = lazy(() => import("./bryntum/Timeline"));
+const SellerBoard = lazy(() => import("./bryntum/SellerBoard"));
 
 const ACTIVE = new Set(["negotiating", "awaiting_paypal", "resolving"]);
 
 function exampleRequest() {
+  return "100 vacuum bags. Budget $300. Ask me before paying anything over $200.";
+}
+
+function inDays(n) {
   const d = new Date();
-  d.setDate(d.getDate() + 7);
-  const when = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return `200 cake boxes with my logo, delivered by ${when}. Budget $600. Ask me before paying anything over $400.`;
+  d.setDate(d.getDate() + n);
+  const pad = (x) => String(x).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function useQuery() {
@@ -23,9 +39,12 @@ function setOrderInUrl(id) {
 
 export default function App() {
   const query = useQuery();
+  const [view, setView] = useState(["spend", "sellers"].includes(query.view) ? query.view : "orders");
   const [orderId, setOrderId] = useState(query.order || null);
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [wallet, reloadWallet, setWallet] = useWallet();
   const returnHandled = useRef(false);
 
   const load = useCallback(async () => {
@@ -36,6 +55,23 @@ export default function App() {
       setError(e.message);
     }
   }, [orderId]);
+
+  // Coming back from PayPal after connecting the owner's PayPal (Vault setup token approved).
+  useEffect(() => {
+    if (returnHandled.current || !query.paypal_connect) return;
+    returnHandled.current = true;
+    window.history.replaceState(null, "", "/");
+    if (query.paypal_connect === "return") {
+      api.walletFinish(query.approval_token_id)
+        .then((w) => {
+          setWallet(w);
+          setNotice("PayPal connected. Deals under your limit will now be held without a trip to PayPal.");
+        })
+        .catch((e) => setError(e.message));
+    } else {
+      setError("You closed PayPal before connecting. Nothing changed.");
+    }
+  }, [query, setWallet]);
 
   // Coming back from PayPal's approval page.
   useEffect(() => {
@@ -59,15 +95,21 @@ export default function App() {
     return () => clearInterval(t);
   }, [orderId, load, state?.order?.status]);
 
-  const start = async (text) => {
+  const start = async (text, deadline) => {
     setError("");
-    const order = await api.createOrder(text);
+    const order = await api.createOrder(text, deadline);
     setOrderId(order.id);
     setOrderInUrl(order.id);
     setState({ order, messages: [] });
   };
 
+  const showView = (next) => {
+    setView(next);
+    window.history.replaceState(null, "", next !== "orders" ? `/?view=${next}` : orderId ? `/?order=${orderId}` : "/");
+  };
+
   const reset = () => {
+    setView("orders");
     setOrderId(null);
     setState(null);
     setError("");
@@ -75,37 +117,64 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app ${view !== "orders" ? "app-wide" : ""}`}>
       <header className="topbar">
-        <button className="wordmark" onClick={reset}>Mandate</button>
+        <button className="wordmark" onClick={reset}>Procuro</button>
         <p className="topbar-note">Your agent buys within your rules. PayPal holds the money until you're happy.</p>
+        <nav className="views" aria-label="Sections">
+          <button className={`tab ${view === "orders" ? "tab-on" : ""}`} onClick={() => showView("orders")}
+            aria-current={view === "orders" ? "page" : undefined}>Orders</button>
+          <button className={`tab ${view === "spend" ? "tab-on" : ""}`} onClick={() => showView("spend")}
+            aria-current={view === "spend" ? "page" : undefined}>Spend</button>
+          <button className={`tab ${view === "sellers" ? "tab-on" : ""}`} onClick={() => showView("sellers")}
+            aria-current={view === "sellers" ? "page" : undefined}>Sellers</button>
+          {(orderId || view !== "orders") && (
+            <button className="btn btn-small" onClick={reset}>New order</button>
+          )}
+        </nav>
       </header>
 
+      {notice && (
+        <div className="notice" role="status">
+          {notice} <button className="link" onClick={() => setNotice("")}>Dismiss</button>
+        </div>
+      )}
       {error && (
         <div className="banner" role="alert">
           {error} <button className="link" onClick={() => setError("")}>Dismiss</button>
         </div>
       )}
 
-      {!orderId ? (
-        <Start onStart={start} onOpen={(id) => { setOrderId(id); setOrderInUrl(id); }} />
+      {view === "spend" ? (
+        <Suspense fallback={<DashboardSkeleton />}>
+          <Dashboard />
+        </Suspense>
+      ) : view === "sellers" ? (
+        <Suspense fallback={<BoardSkeleton />}>
+          <SellerBoard onOpenOrder={(id) => { setView("orders"); setState(null); setOrderId(id); setOrderInUrl(id); }} />
+        </Suspense>
+      ) : !orderId ? (
+        <Start onStart={start} onOpen={(id) => { setOrderId(id); setOrderInUrl(id); }}
+          wallet={wallet} onWallet={setWallet} onError={setError} onWalletRetry={reloadWallet} />
       ) : !state ? (
-        <p className="loading">Loading order…</p>
+        <OrderSkeleton />
       ) : (
-        <OrderView state={state} reload={load} onError={setError} />
+        <OrderView state={state} reload={async () => { await load(); reloadWallet(); }} onError={setError}
+          onNewOrder={reset} wallet={wallet} />
       )}
     </div>
   );
 }
 
-function Start({ onStart, onOpen }) {
+function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
   const [text, setText] = useState(exampleRequest());
+  const [deadline, setDeadline] = useState(inDays(7));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(null); // null while loading
 
   useEffect(() => {
-    api.listOrders().then(setOrders).catch(() => {});
+    api.listOrders().then(setOrders).catch(() => setOrders([]));
   }, []);
 
   const submit = async (e) => {
@@ -113,7 +182,7 @@ function Start({ onStart, onOpen }) {
     setBusy(true);
     setErr("");
     try {
-      await onStart(text);
+      await onStart(text, deadline);
     } catch (ex) {
       setErr(ex.message);
       setBusy(false);
@@ -123,23 +192,42 @@ function Start({ onStart, onOpen }) {
   return (
     <main className="start">
       <h1 className="start-title">Tell your agent what you need, and what it's allowed to spend.</h1>
-      <form onSubmit={submit} className="mandate-form">
-        <label htmlFor="req" className="field-label">What should your agent buy?</label>
-        <textarea id="req" value={text} onChange={(e) => setText(e.target.value)} rows={4} />
-        <p className="hint">Include a budget, when you need it, and the amount above which it should ask you first.</p>
-        {err && <p className="form-error">{err}</p>}
-        <button className="btn primary" disabled={busy || !text.trim()}>
-          {busy ? "Signing your mandate…" : "Start buying"}
-        </button>
-      </form>
-      {orders.length > 0 && (
+      <div className="start-grid">
+        <div className="start-left">
+        <form onSubmit={submit} className="mandate-form">
+          <label htmlFor="req" className="field-label">What should your agent buy?</label>
+          <textarea id="req" value={text} onChange={(e) => setText(e.target.value)} rows={5} />
+          <p className="hint">Include a budget and the amount above which it should ask you first. Pick the delivery date on the calendar.</p>
+          {err && <p className="form-error">{err}</p>}
+          <button className="btn primary" disabled={busy || !text.trim() || !deadline}>
+            <Busy busy={busy} invert text="Your agent is reading your request">Start buying</Busy>
+          </button>
+        </form>
+        <WalletCard wallet={wallet} onChange={onWallet} onError={onError} onRetry={onWalletRetry} />
+        </div>
+        <Suspense fallback={<CalendarSkeleton />}>
+          <DeliveryCalendar value={deadline} onChange={setDeadline} />
+        </Suspense>
+      </div>
+      {orders === null ? (
+        <section className="history">
+          <h2>Earlier orders</h2>
+          <HistorySkeleton />
+        </section>
+      ) : orders.length > 0 && (
         <section className="history">
           <h2>Earlier orders</h2>
           <ul>
             {orders.slice(0, 6).map((o) => (
               <li key={o.id}>
                 <button className="history-row" onClick={() => onOpen(o.id)}>
-                  <span>{o.mandate?.quantity} × {o.mandate?.item}</span>
+                  <span className="history-what">
+                    <b>{o.mandate?.quantity} × {o.mandate?.item}</b>
+                    <span>
+                      {o.winner ? `${o.winner.seller_name}, ${money(o.winner.total, o.mandate?.currency)}` : "No seller yet"}
+                      {o.created_at ? ` · ${shortDate(new Date(o.created_at * 1000).toISOString().slice(0, 10))}` : ""}
+                    </span>
+                  </span>
                   <StatusPill status={o.status} />
                 </button>
               </li>
@@ -152,6 +240,7 @@ function Start({ onStart, onOpen }) {
 }
 
 const STATUS_TEXT = {
+  choosing_product: "Pick a product",
   negotiating: "Negotiating",
   awaiting_approval: "Needs your approval",
   awaiting_paypal: "Waiting for PayPal",
@@ -168,15 +257,22 @@ function StatusPill({ status }) {
   return <span className={`pill pill-${status}`}>{STATUS_TEXT[status] || status}</span>;
 }
 
-function OrderView({ state, reload, onError }) {
+function OrderView({ state, reload, onError, onNewOrder, wallet }) {
   const { order, messages } = state;
+  const [pane, setPane] = useState("conversation");
   const m = order.mandate;
   return (
+    <>
+    <Stepper order={order} />
     <main className="order">
       <aside className="order-side">
         <section className="mandate-card">
           <div className="mandate-head">
-            <h1>{m.quantity} × {m.item}</h1>
+            {order.product?.image && <img className="mandate-img" src={order.product.image} alt="" />}
+            <h1>
+              {order.status === "choosing_product" ? m.item : `${m.quantity} × ${m.item}`}
+              {order.product?.brand && <span className="brand">{order.product.brand}</span>}
+            </h1>
             <StatusPill status={order.status} />
           </div>
           <dl className="rules">
@@ -185,19 +281,47 @@ function OrderView({ state, reload, onError }) {
             <div><dt>Deliver by</dt><dd>{shortDate(m.deadline)}</dd></div>
           </dl>
           {m.requirements && <p className="req">{m.requirements}</p>}
-          <p className="signed">Signed mandate {order.intent_mandate?.id}</p>
+          {(order.ap2 || order.intent_mandate) && (
+            <p className="signed">
+              {order.ap2 ? "Signed as AP2 v0.2 mandates" : `Signed mandate ${order.intent_mandate.id}`}
+              <button type="button" className="link" onClick={() => setPane("receipt")}>See the receipt</button>
+            </p>
+          )}
         </section>
 
+        <Actions order={order} reload={reload} onError={onError} onNewOrder={onNewOrder} wallet={wallet} />
         <MoneyMeter order={order} />
-        <Actions order={order} reload={reload} onError={onError} />
+        {["held", "completed", "settled"].includes(order.status) && (
+          <ShareOrder order={order} reload={reload} onError={onError} />
+        )}
         {order.benchmark && <Market bench={order.benchmark} />}
       </aside>
 
       <section className="order-main">
-        <Feed messages={messages} sellers={order.sellers} />
+        {order.status === "choosing_product" && <ProductPicker order={order} reload={reload} onError={onError} />}
+        <div className="panes" role="tablist" aria-label="Order views">
+          <button role="tab" aria-selected={pane === "conversation"} className={`tab ${pane === "conversation" ? "tab-on" : ""}`}
+            onClick={() => setPane("conversation")}>Negotiation</button>
+          <button role="tab" aria-selected={pane === "timeline"} className={`tab ${pane === "timeline" ? "tab-on" : ""}`}
+            onClick={() => setPane("timeline")}>Timeline</button>
+          {(order.ap2 || order.intent_mandate) && (
+            <button role="tab" aria-selected={pane === "receipt"} className={`tab ${pane === "receipt" ? "tab-on" : ""}`}
+              onClick={() => setPane("receipt")}>Receipt</button>
+          )}
+        </div>
+        {pane === "receipt" ? (
+          <Receipt orderId={order.id} version={`${order.status}-${order.updated_at}`} />
+        ) : pane === "timeline" ? (
+          <Suspense fallback={<GanttSkeleton />}>
+            <Timeline orderId={order.id} version={`${order.status}-${order.updated_at}`} />
+          </Suspense>
+        ) : (
+          <Negotiation order={order} messages={messages} />
+        )}
         {order.winner && <AskBox orderId={order.id} />}
       </section>
     </main>
+    </>
   );
 }
 
@@ -215,12 +339,15 @@ function MoneyMeter({ order }) {
   }
   const captured = p.captured || 0;
   const released = p.released || 0;
-  const held = p.authorization_id && !p.capture_id ? total : 0;
+  const closed = p.capture_id || p.voided; // the hold ended: captured, or voided when nothing is paid
+  const held = p.authorization_id && !closed ? total : 0;
   const pct = (v) => `${Math.max(0, Math.min(100, (v / total) * 100))}%`;
 
   let line = `${money(total, cur)} agreed. Nothing charged yet.`;
   if (held) line = `${money(held, cur)} held, not paid`;
-  if (p.capture_id) line = released > 0
+  if (closed) line = released > 0 && captured <= 0
+    ? `Nothing paid, ${money(released, cur)} returned`
+    : released > 0
     ? `${money(captured, cur)} paid, ${money(released, cur)} returned`
     : `${money(captured, cur)} paid`;
 
@@ -237,6 +364,9 @@ function MoneyMeter({ order }) {
         <li><i className="key key-paid" />Paid to seller</li>
         <li><i className="key key-back" />Returned to you</li>
       </ul>
+      {p.saved_paypal && (
+        <p className="saved-note">Held with your saved PayPal{p.auto_paid ? ", automatically, inside your limit" : ""}.</p>
+      )}
       {p.authorization_id && (
         <p className="meter-sub">PayPal authorization {p.authorization_id}
           {p.reauthorized ? " (renewed)" : ""}</p>
@@ -245,7 +375,8 @@ function MoneyMeter({ order }) {
   );
 }
 
-function Actions({ order, reload, onError }) {
+function Actions({ order, reload, onError, onNewOrder, wallet }) {
+  const saved = wallet?.status === "active";
   const [busy, setBusy] = useState(false);
   const [reporting, setReporting] = useState(false);
   const w = order.winner;
@@ -263,8 +394,33 @@ function Actions({ order, reload, onError }) {
     }
   };
 
+  if (order.status === "choosing_product") {
+    return (
+      <div className="working-card is-you">
+        <p><b>Pick the exact product</b>Choose one of the real products on the right. Sellers will quote on exactly that item.</p>
+      </div>
+    );
+  }
+
   if (order.status === "negotiating") {
-    return <p className="working">Your agent is negotiating with seller agents. Watch the conversation on the right.</p>;
+    const n = Object.keys(order.sellers || {}).length;
+    return (
+      <div className="working-card" role="status">
+        <Spinner size={20} />
+        <p><b>Negotiating with {n || "the"} seller agent{n === 1 ? "" : "s"}</b>
+          This takes about a minute. You'll be asked before any money moves.</p>
+      </div>
+    );
+  }
+
+  if (order.status === "resolving") {
+    return (
+      <div className="working-card" role="status">
+        <Spinner size={20} />
+        <p><b>Sorting out the problem with {w?.seller_name || "the seller"}</b>
+          Your agent is reviewing the photos and negotiating. Your money stays on hold meanwhile.</p>
+      </div>
+    );
   }
 
   if (order.status === "awaiting_approval" && w) {
@@ -276,13 +432,23 @@ function Actions({ order, reload, onError }) {
           {w.saved_vs_opening > 0 && <>Negotiated {money(w.saved_vs_opening, cur)} off their first quote.</>}
         </p>
         <p className="deal-why">{w.explanation}</p>
+        <MoveDelivery order={order} reload={reload} onError={onError} />
         <button className="btn primary" disabled={busy} onClick={() => run(async () => {
           const o = await api.approve(order.id);
+          // With a saved PayPal the hold is already done; otherwise approve on PayPal's page.
+          if (o.status !== "awaiting_paypal" || !o.paypal?.approve_url) return;
           window.location.href = o.paypal.approve_url;
         })}>
-          {busy ? "Opening PayPal…" : `Approve and authorize ${money(w.total, cur)} with PayPal`}
+          <Busy busy={busy} invert text={saved ? "Holding with your PayPal" : "Opening PayPal"}>
+            {saved ? `Approve and hold ${money(w.total, cur)} with your PayPal` : `Approve and authorize ${money(w.total, cur)} with PayPal`}
+          </Busy>
         </button>
-        <p className="hint">PayPal will hold the money. It's only paid to {w.seller_name} after you confirm delivery.</p>
+        <p className="hint">
+          {saved
+            ? <>One tap: your saved PayPal holds the money, no trip to PayPal. It's only paid to {w.seller_name} after you confirm delivery.</>
+            : <>PayPal will hold the money. It's only paid to {w.seller_name} after you confirm delivery.
+              {" "}Connect PayPal on the start page and this becomes one tap, and deals under your limit hold themselves.</>}
+        </p>
       </section>
     );
   }
@@ -290,7 +456,8 @@ function Actions({ order, reload, onError }) {
   if (order.status === "awaiting_paypal") {
     return (
       <section className="deal">
-        <p>Waiting for you to authorize in PayPal.</p>
+        <h2>Finish in PayPal</h2>
+        <p>Waiting for you to authorize the payment in PayPal. Nothing is charged until you confirm delivery.</p>
         {order.paypal?.approve_url && (
           <a className="btn primary" href={order.paypal.approve_url}>Open PayPal</a>
         )}
@@ -303,16 +470,24 @@ function Actions({ order, reload, onError }) {
       <ProblemForm order={order} onDone={() => { setReporting(false); reload(); }} onError={onError} />
     ) : (
       <section className="deal">
-        <p>When your order arrives, tell your agent how it went.</p>
+        <h2>Has it arrived?</h2>
+        <p>{w?.seller_name} promised delivery by {shortDate(w?.delivery_date)}. When it arrives, tell your agent how it went.</p>
         <div className="btn-row">
           <button className="btn primary" disabled={busy} onClick={() => run(() => api.delivered(order.id))}>
-            Received, looks good
+            <Busy busy={busy} invert text={`Paying ${w?.seller_name || "the seller"}`}>Received, looks good</Busy>
           </button>
           <button className="btn" disabled={busy} onClick={() => setReporting(true)}>Report a problem</button>
         </div>
+        <MoveDelivery order={order} reload={reload} onError={onError} />
+        <p className="hint">"Received" pays {w?.seller_name} {money(order.paypal?.authorized_amount ?? w?.total, cur)} from the hold.
+          "Report a problem" keeps the money on hold while your agent sorts it out.</p>
       </section>
     );
   }
+
+  const again = (
+    <button className="btn primary" onClick={onNewOrder}>Start a new order</button>
+  );
 
   if (order.status === "escalated" && order.dispute_packet) {
     return (
@@ -320,14 +495,81 @@ function Actions({ order, reload, onError }) {
         <h2>Dispute file ready</h2>
         <p>{order.dispute_packet.summary} Your money is still on hold.</p>
         <p className="hint">{order.dispute_packet.requested_outcome}</p>
+        {again}
+      </section>
+    );
+  }
+
+  if (order.status === "completed" || order.status === "settled") {
+    const p = order.paypal || {};
+    return (
+      <section className="deal">
+        <h2>{order.status === "completed" ? "Order complete" : "Settled"}</h2>
+        <p>
+          {money(p.captured, cur)} paid to {w?.seller_name}
+          {p.released > 0 ? `, ${money(p.released, cur)} returned to you` : ""}.
+        </p>
+        {again}
       </section>
     );
   }
 
   if (order.status === "no_deal" || order.status === "failed") {
-    return <p className="working">{order.error || "No deal was made, and no money moved."}</p>;
+    return (
+      <section className="deal">
+        <p>{order.error || "No deal was made, and no money moved."}</p>
+        {again}
+      </section>
+    );
   }
   return null;
+}
+
+// Ask the seller agent for another delivery day (the same request as dragging it on the calendar).
+function MoveDelivery({ order, reload, onError }) {
+  const w = order.winner;
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(w?.delivery_date || "");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  if (!w) return null;
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setResult(null);
+    try {
+      const r = await api.reschedule(order.id, date);
+      setResult(r);
+      if (r.accepted) setOpen(false);
+      await reload();
+    } catch (ex) {
+      onError(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="move">
+      {!open ? (
+        <button type="button" className="link move-open" onClick={() => { setOpen(true); setResult(null); }}>
+          Need it on a different day?
+        </button>
+      ) : (
+        <form className="move-form" onSubmit={submit}>
+          <label className="field-label" htmlFor="move-date">Deliver on</label>
+          <div className="move-row">
+            <input id="move-date" type="date" value={date} min={inDays(1)} onChange={(e) => setDate(e.target.value)} />
+            <button className="btn btn-small" disabled={busy || !date || date === w.delivery_date}>
+              <Busy busy={busy} text={`Asking ${w.seller_name}`}>Ask {w.seller_name}</Busy>
+            </button>
+            <button type="button" className="link" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
+          </div>
+          <p className="hint">Your agent asks {w.seller_name} over A2A. The price and your PayPal hold don't change.</p>
+        </form>
+      )}
+      {result && <p className={`move-result ${result.accepted ? "is-ok" : "is-no"}`} role="status">{result.message}</p>}
+    </div>
+  );
 }
 
 function ProblemForm({ order, onDone, onError }) {
@@ -354,7 +596,7 @@ function ProblemForm({ order, onDone, onError }) {
       <input id="photos" type="file" accept="image/*" multiple onChange={(e) => setFiles(e.target.files)} />
       <p className="hint">Your payment stays on hold while your agent sorts this out with the seller.</p>
       <button className="btn primary" disabled={busy || !note.trim()}>
-        {busy ? "Sending to your agent…" : "Send to my agent"}
+        <Busy busy={busy} invert text="Sending to your agent">Send to my agent</Busy>
       </button>
     </form>
   );
@@ -365,15 +607,17 @@ function Market({ bench }) {
     <section className="market">
       <h2>Market check</h2>
       <p>
-        {bench.samples} comparable listings on Channel3: {money(bench.low, bench.currency)} to{" "}
-        {money(bench.high, bench.currency)} each, typically {money(bench.median, bench.currency)}.
+        {bench.retailers} retailer{bench.retailers === 1 ? "" : "s"} on Channel3 sell this exact item for{" "}
+        {bench.low === bench.high
+          ? money(bench.low, bench.currency)
+          : `${money(bench.low, bench.currency)} to ${money(bench.high, bench.currency)}`}{" "}
+        each.
       </p>
-      <ul className="examples">
-        {bench.examples.slice(0, 3).map((ex) => (
-          <li key={ex.id}>
-            {ex.image && <img src={ex.image} alt="" />}
-            <span>{ex.title}</span>
-            <b>{money(ex.price, bench.currency)}</b>
+      <ul className="retailers">
+        {(bench.offers || []).slice(0, 4).map((o, i) => (
+          <li key={`${o.domain}-${i}`}>
+            <span>{o.domain}</span>
+            <b>{money(o.price, bench.currency)}</b>
           </li>
         ))}
       </ul>
@@ -381,39 +625,75 @@ function Market({ bench }) {
   );
 }
 
-function Feed({ messages, sellers }) {
-  const end = useRef(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length]);
+function ProductPicker({ order, reload, onError }) {
+  const m = order.mandate;
+  const products = order.candidates || [];
+  const recommended = products.find((p) => p.recommended) || products[0];
+  const [picked, setPicked] = useState(recommended?.id);
+  const product = products.find((p) => p.id === picked) || recommended;
+  const [qty, setQty] = useState(recommended?.suggested_quantity || m.quantity);
+  const [busy, setBusy] = useState(false);
+
+  const pick = (p) => {
+    setPicked(p.id);
+    setQty(p.suggested_quantity || m.quantity);
+  };
+  const retail = product ? product.low * (Number(qty) || 0) : 0;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.chooseProduct(order.id, product.id, Number(qty));
+      await reload();
+    } catch (ex) {
+      onError(ex.message);
+      setBusy(false);
+    }
+  };
+
   return (
-    <section className="feed" aria-live="polite">
-      <h2 className="feed-title">Agent conversation</h2>
-      {messages.length === 0 && <p className="hint">Your agent is getting started…</p>}
-      <ol>
-        {messages.map((msg) => {
-          const side = msg.from === "buyer" ? "mine" : ["paypal", "system"].includes(msg.from) ? "event" : "theirs";
-          return (
-            <li key={msg.seq} className={`msg msg-${side} kind-${msg.kind}`}>
-              <span className="who">
-                {agentName(msg.from, sellers)}
-                {msg.to && msg.to !== "buyer" && msg.from === "buyer" && (
-                  <> to {msg.to === "all" ? "all sellers" : agentName(msg.to, sellers)}</>
-                )}
-              </span>
-              <p>{msg.text}</p>
-              {msg.data?.unit_price && msg.from !== "buyer" && (
-                <span className="offer">
-                  {money(msg.data.unit_price, msg.data.currency)} each, {money(msg.data.total, msg.data.currency)} total
-                  {msg.data.delivery_date ? `, delivered ${shortDate(msg.data.delivery_date)}` : ""}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      <div ref={end} />
-    </section>
+    <form className="picker" onSubmit={submit}>
+      <h2>Which product should your agent buy?</h2>
+      <p className="hint">Real products from Channel3. Sellers will quote on exactly the one you pick.</p>
+      <div className="products" role="radiogroup" aria-label="Products">
+        {products.map((p) => (
+          <button type="button" key={p.id} role="radio" aria-checked={p.id === product?.id}
+            className={`product ${p.id === product?.id ? "product-on" : ""}`} onClick={() => pick(p)}>
+            <div className="product-img">{p.image ? <img src={p.image} alt="" loading="lazy" /> : <span>No photo</span>}</div>
+            {p.recommended && <span className="pick-badge">Agent's pick</span>}
+            <span className="product-title">{p.title}</span>
+            {p.brand && <span className="product-brand">{p.brand}</span>}
+            <span className="product-price">
+              {money(p.low, m.currency)}
+              {p.high > p.low && <> to {money(p.high, m.currency)}</>}
+            </span>
+            <span className="product-meta">
+              {p.retailers} retailer{p.retailers === 1 ? "" : "s"}
+              {p.units_per_item ? `, ${p.units_per_item} per pack` : ""}
+            </span>
+          </button>
+        ))}
+      </div>
+      {product && (
+        <div className="picker-foot">
+          <label className="field-label" htmlFor="qty">How many of this item?</label>
+          <div className="qty-row">
+            <input id="qty" type="number" min="1" max="100000" value={qty} onChange={(e) => setQty(e.target.value)} />
+            <span className="hint">
+              {product.units_per_item
+                ? `${(Number(qty) || 0) * product.units_per_item} units in total. `
+                : "Pack size isn't stated, so each counts as one. "}
+              At the lowest retail price that's {money(retail, m.currency)}
+              {retail > m.budget_max ? `, over your ${money(m.budget_max, m.currency)} budget.` : "."}
+            </span>
+          </div>
+          <button className="btn primary" disabled={busy || !(Number(qty) >= 1)}>
+            <Busy busy={busy} invert text="Starting the negotiation">{`Negotiate for ${Number(qty) || 0} × this item`}</Busy>
+          </button>
+        </div>
+      )}
+    </form>
   );
 }
 
@@ -438,7 +718,7 @@ function AskBox({ orderId }) {
       <label className="field-label" htmlFor="ask">Ask your agent about this order</label>
       <div className="ask-row">
         <input id="ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Why didn't you pick BoxCraft?" />
-        <button className="btn" disabled={busy || !q.trim()}>{busy ? "Thinking…" : "Ask"}</button>
+        <button className="btn" disabled={busy || !q.trim()}><Busy busy={busy} text="Thinking">Ask</Busy></button>
       </div>
       {answer && <p className="answer">{answer}</p>}
     </form>

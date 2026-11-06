@@ -1,19 +1,44 @@
 {
-  "name": "mandate-frontend",
+  "name": "procuro-frontend",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@bryntum/calendar-react-thin": "^7.3.7",
+    "@bryntum/calendar-thin": "npm:@bryntum/calendar-thin-trial@^7.3.7",
+    "@bryntum/core-react-thin": "^7.3.7",
+    "@bryntum/core-thin": "npm:@bryntum/core-thin-trial@^7.3.7",
+    "@bryntum/engine-thin": "npm:@bryntum/engine-thin-trial@^7.3.7",
+    "@bryntum/gantt-react-thin": "^7.3.7",
+    "@bryntum/gantt-thin": "npm:@bryntum/gantt-thin-trial@^7.3.7",
+    "@bryntum/grid-thin": "npm:@bryntum/grid-thin-trial@^7.3.7",
+    "@bryntum/scheduler-react-thin": "^7.3.7",
+    "@bryntum/scheduler-thin": "npm:@bryntum/scheduler-thin-trial@^7.3.7",
+    "@bryntum/schedulerpro-thin": "npm:@bryntum/schedulerpro-thin-trial@^7.3.7",
+    "ag-studio": "3.0.0",
+    "ag-studio-react": "3.0.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1"
   },
   "scripts": {
+    "copy-bryntum-css": "node scripts/copy-bryntum-css.js",
+    "prestart": "node scripts/copy-bryntum-css.js",
     "start": "react-scripts start",
+    "prebuild": "node scripts/copy-bryntum-css.js",
     "build": "react-scripts build",
     "test": "react-scripts test"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }

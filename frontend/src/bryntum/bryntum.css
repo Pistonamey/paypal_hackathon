@@ -1,0 +1,83 @@
+/* Bryntum Gantt and Calendar, fitted to Procuro's look. */
+
+/* ---- Timeline (Gantt) ---- */
+.timeline { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.timeline-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 20px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.timeline-next { font-size: 15px; display: grid; gap: 2px; }
+.timeline-next p { margin: 0; }
+.timeline-key { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; font-size: 13px; color: var(--ink-soft); }
+.timeline-key i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.k-done { background: linear-gradient(90deg, #3f51b5 0 33%, #26a69a 33% 66%, #43a047 66%); }
+.k-planned { background: linear-gradient(90deg, #3f51b5 0 33%, #26a69a 33% 66%, #43a047 66%); opacity: .35; }
+.k-hold { background: var(--held); }
+.k-deadline { background: var(--problem); width: 3px !important; }
+.k-baseline { background: repeating-linear-gradient(90deg, #9aa7b6 0 4px, transparent 4px 7px); height: 4px !important; }
+.timeline-gantt { height: 640px; }
+
+.timeline .b-gantt { font-family: var(--body); }
+.timeline .b-grid-header-text { font-weight: 700; }
+.step { font-size: 14px; }
+.st { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+.st-done { background: #d3ecdf; color: #155a40; }
+.st-now { background: var(--held); color: var(--held-ink); }
+.st-planned { background: #e3e8ee; color: var(--ink-soft); }
+
+/* Planned steps are pale; done and current ones are solid. */
+.timeline .t-planned .b-gantt-task,
+.timeline .t-planned.b-gantt-task,
+.timeline .t-planned .b-milestone { opacity: .4; }
+.timeline .t-now .b-gantt-task { box-shadow: 0 0 0 2px var(--ink); }
+
+/* Owner's deadline line */
+.timeline .tr-deadline { border-inline-start: 3px solid var(--problem) !important; }
+.timeline .tr-deadline .b-sch-range-label,
+.timeline .tr-deadline label { color: var(--problem); font-weight: 700; }
+
+.tip { max-width: 280px; font-size: 13px; line-height: 1.4; }
+.tip-detail { margin-top: 6px; color: #4b5b6e; }
+
+/* ---- Delivery-date calendar ---- */
+.cal { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cal-head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline; }
+.cal-head h2 { font: 700 18px var(--display); margin: 0; }
+.cal-picked { margin: 0; font-size: 15px; }
+.cal-picked b { font: 800 17px var(--display); }
+.cal-body { height: 470px; }
+.cal .b-calendar { font-family: var(--body); }
+.cal .b-calendar-cell { cursor: pointer; }
+.cal .b-calendar-cell.is-picked { background: #fff8dc; box-shadow: inset 0 0 0 2.5px var(--ink); }
+.cal .b-calendar-cell.is-past { background: #f3f5f8; cursor: not-allowed; }
+.cal-note { margin: 0; padding: 8px 16px 12px; font-size: 13px; color: var(--ink-soft); }
+
+/* ---- Sellers board (Scheduler) ---- */
+.board { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.board-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 24px; padding: 18px 20px 10px; }
+.board-head h1 { font: 800 26px var(--display); margin: 0 0 4px; }
+.board-sub { margin: 0; max-width: 720px; color: var(--ink-soft); font-size: 15px; line-height: 1.45; }
+.board-count { margin: 0; font-size: 15px; }
+.board-count b { font: 800 24px var(--display); margin-right: 4px; }
+.board-key { padding: 0 20px 12px; border-bottom: 1px solid var(--line); }
+.k-full { background: repeating-linear-gradient(135deg, #d9dee6 0 4px, #f1f3f6 4px 8px); border: 1px solid #c3cad4; }
+.board-scheduler { min-height: 260px; }
+.board .b-scheduler { font-family: var(--body); }
+.board .b-grid-header-text { font-weight: 700; }
+.sb-seller, .sb-next { display: grid; gap: 2px; line-height: 1.25; }
+.sb-seller b { font: 700 16px var(--display); }
+.sb-seller span, .sb-next span { font-size: 12.5px; color: var(--ink-soft); }
+.sb-next b { font-size: 14px; }
+.sb-next.is-busy span { color: var(--problem); font-weight: 700; }
+.sb-bar { display: grid; gap: 1px; line-height: 1.2; overflow: hidden; }
+.sb-bar b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-bar span { font-size: 11.5px; opacity: .9; white-space: nowrap; }
+.board .b-sch-event-wrap { cursor: pointer; }
+.board .b-sch-resource-time-range {
+  background: repeating-linear-gradient(135deg, rgba(120,130,145,.18) 0 6px, rgba(120,130,145,.06) 6px 12px);
+  color: #5c6878; font-size: 12px; font-weight: 700; align-items: flex-start; padding: 4px 6px;
+}
+.board .bk-confirmed .b-sch-event { color: var(--held-ink); }
+.board > .hint { padding: 0 20px 16px; }
+.sb-seller span { white-space: normal; }
+.cal-loading { display: inline-flex; align-items: center; gap: 8px; }
+/* Deliveries that can still move: a grab handle look */
+.cal .b-cal-event-wrap[data-event-id$="-arrived"] { cursor: grab; }
+.cal .b-dragging .b-cal-event, .cal .b-cal-event-wrap.b-dragging { cursor: grabbing; }

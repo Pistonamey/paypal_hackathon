@@ -1,0 +1,144 @@
+/* Loading and progress pieces (see ui.js). */
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* spinner */
+.spinner {
+  display: inline-block; flex: none; border-radius: 50%;
+  border: 2.5px solid rgba(21, 37, 58, .18); border-top-color: var(--ink);
+  animation: spin .75s linear infinite; vertical-align: middle;
+}
+.spinner-invert { border-color: rgba(255, 255, 255, .3); border-top-color: #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.busy { display: inline-flex; align-items: center; gap: 10px; }
+
+/* skeleton bones with a soft shimmer */
+.bone {
+  display: block; flex: none;
+  background: linear-gradient(90deg, #e2e8ef 0%, #eef2f6 40%, #e2e8ef 80%) 0 0 / 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+.skeleton { display: block; }
+.row-skel { display: flex; gap: 12px; align-items: center; }
+.row-skel > .bone { flex: 1; }
+.tabs-skel { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.tabs-skel > .bone { flex: none; }
+.card-skel {
+  display: grid; gap: 12px; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; padding: 18px 20px;
+}
+.card-skel.bare { background: none; border: 0; padding: 4px 0; }
+.card-skel.tall { min-height: 220px; align-content: start; }
+
+/* order page */
+.order-skel .order { padding-top: 20px; }
+.steps-skel { display: flex; gap: 10px; padding-top: 22px; }
+.step-skel { flex: 1; display: flex; align-items: center; gap: 10px; }
+.feed-skel { display: grid; gap: 14px; padding: 18px 20px; }
+.bubble-skel { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: #f4f6f9; }
+.bubble-end { justify-self: end; background: #e7ecf2; }
+
+/* calendar */
+.cal-skel { padding: 12px 16px 16px; display: grid; gap: 14px; height: 470px; grid-template-rows: auto 1fr; }
+.cal-skel .row-skel > .bone { flex: none; }
+.cal-grid-skel { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(5, 1fr); gap: 6px; }
+
+/* gantt */
+.gantt-skel { padding: 14px 18px; display: grid; gap: 14px; }
+.gantt-row-skel { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: center; }
+.gantt-track-skel { display: flex; }
+
+/* sellers board */
+.board-skel { border-top: 1px solid var(--line); }
+.board-row-skel { display: grid; grid-template-columns: 190px 180px 1fr; gap: 18px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.board-track-skel { display: grid; gap: 6px; }
+
+/* spend dashboard */
+.dash-skel { padding-top: 20px; }
+.dash-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
+.dash-panels { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-top: 14px; }
+
+.history-skel .history-row { cursor: default; }
+
+/* overlay that covers a Bryntum widget until it has drawn its data */
+.boot { position: relative; }
+.boot-cover { position: absolute; inset: 0; z-index: 5; background: var(--sheet); transition: opacity .25s ease; }
+.boot-cover.is-gone { opacity: 0; pointer-events: none; }
+
+/* the agents are talking */
+.typing {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; padding: 9px 14px;
+  background: #eef2f7; border-radius: 10px; border-bottom-left-radius: 2px; font-size: 14px; color: var(--ink-soft);
+}
+.typing-dots { display: inline-flex; gap: 4px; }
+.typing-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-soft); animation: dot 1.1s ease-in-out infinite; }
+.typing-dots i:nth-child(2) { animation-delay: .15s; }
+.typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+/* where the order is */
+.stepper {
+  list-style: none; margin: 0; padding: 20px 0 0; display: flex; gap: 0; counter-reset: s;
+}
+.st-step { flex: 1; display: flex; align-items: flex-start; gap: 10px; min-width: 0; position: relative; padding-right: 12px; }
+.st-step:not(:last-child)::after {
+  content: ""; position: absolute; left: 40px; right: 10px; top: 13px; height: 2px; background: var(--line); z-index: 0;
+}
+.st-step.is-done:not(:last-child)::after { background: var(--paid); }
+.st-dot {
+  position: relative; z-index: 1; flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 13px var(--display); background: var(--paper); border: 2px solid var(--line); color: var(--ink-soft);
+}
+.st-text { position: relative; z-index: 1; display: grid; min-width: 0; background: var(--paper); padding-right: 8px; }
+.st-label { font-weight: 700; font-size: 14px; line-height: 1.25; color: var(--ink-soft); }
+.st-note { font-size: 12.5px; font-weight: 700; margin-top: 3px; }
+.is-done .st-dot { background: var(--paid); border-color: var(--paid); color: #fff; }
+.is-done .st-label { color: var(--ink); }
+.is-now .st-dot { background: var(--sheet); border-color: var(--ink); color: var(--ink); }
+.is-now .st-label { color: var(--ink); }
+.is-now.by-you .st-dot { background: var(--held); border-color: var(--held-ink); color: var(--held-ink); box-shadow: 0 0 0 4px rgba(245, 207, 74, .35); }
+.is-now.by-you .st-note { color: var(--held-ink); }
+.is-now.by-agent .st-note { color: var(--ink-soft); }
+.is-now.by-problem .st-dot { background: var(--problem); border-color: var(--problem); color: #fff; }
+.is-now.by-problem .st-note { color: var(--problem); }
+
+/* a status card while agents work */
+.working-card {
+  display: flex; gap: 12px; align-items: flex-start; background: var(--sheet); border: 1.5px solid var(--line);
+  border-radius: 8px; padding: 16px 18px;
+}
+.working-card p { margin: 0; }
+.working-card b { display: block; font: 700 17px/1.3 var(--display); margin-bottom: 2px; }
+.working-card .spinner { margin-top: 3px; }
+.working-card.is-you { border-color: var(--held-ink); background: #fffbea; }
+
+@media (max-width: 860px) {
+  .stepper { overflow-x: auto; padding-bottom: 6px; }
+  .st-step { flex: 0 0 auto; padding-right: 18px; }
+  .st-step:not(.is-now) .st-text { display: none; }
+  .st-step:not(:last-child)::after { left: 30px; right: 0; }
+  .st-step.is-now .st-text { max-width: 180px; }
+  .dash-tiles { grid-template-columns: repeat(2, 1fr); }
+  .dash-panels { grid-template-columns: 1fr; }
+  .board-row-skel { grid-template-columns: 120px 1fr; }
+  .board-row-skel > div:nth-child(2) { display: none; }
+  .gantt-row-skel { grid-template-columns: 120px 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone { animation: none; }
+  .spinner { animation-duration: 2s; }
+  .typing-dots i { animation: none; opacity: .7; }
+  .boot-cover { transition: none; }
+}
+
+/* skeleton cards render before Bryntum's own stylesheet arrives, so they carry their own frame */
+.skeleton.cal, .skeleton.timeline, .skeleton.board {
+  background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.skeleton.cal .cal-head { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.skeleton.cal .cal-head h2 { font: 700 18px var(--display); margin: 0; }
+.skeleton.board .board-head { padding: 18px 20px 14px; }
+.skeleton.timeline .gantt-skel { min-height: 420px; }
+.studio-cover { background: var(--paper); padding: 8px 12px; }
+.dash-body-skel { display: grid; gap: 0; }

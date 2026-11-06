@@ -1,9 +1,14 @@
 .env
 .venv/
+venv/
 __pycache__/
 .pytest_cache/
 node_modules/
 frontend/build/
 *.json.key
 serviceAccount*.json
+*firebase-adminsdk*.json
 .DS_Store
+frontend/public/bryntum/
+backend/vendor/.logs/
+*.zip

@@ -13,6 +13,8 @@ def _env(name: str, default: str = "") -> str:
 # --- AI ---
 ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = _env("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+# Only needed for organization-level keys that aren't scoped to a workspace.
+ANTHROPIC_WORKSPACE_ID = _env("ANTHROPIC_WORKSPACE_ID")
 # Without a key the agents fall back to a simple rule-based negotiator so the
 # app still runs locally. The hosted demo always runs with the real model.
 AI_ENABLED = bool(ANTHROPIC_API_KEY)
@@ -51,13 +53,22 @@ SELLER_AGENT_URLS = [u.strip().rstrip("/") for u in _env("SELLER_AGENT_URLS").sp
 CORS_ORIGINS = [o.strip() for o in _env("CORS_ORIGINS", FRONTEND_URL).split(",") if o.strip()]
 
 # --- Firebase / Firestore ---
-# Either the full service-account JSON as a string (best for Heroku config vars)
-# or a path in GOOGLE_APPLICATION_CREDENTIALS. Without either, an in-memory store is used.
+# Service-account credentials, first one set wins:
+#   FIREBASE_CREDENTIALS_JSON       the key file's JSON, pasted as the value (one line, or in quotes)
+#   FIREBASE_CREDENTIALS_PATH       path to the downloaded key file
+#   GOOGLE_APPLICATION_CREDENTIALS  standard Google path variable
+# With none of them, data is kept in memory and lost on restart.
+FIREBASE_CREDENTIALS_PATH = _env("FIREBASE_CREDENTIALS_PATH")
 FIREBASE_CREDENTIALS_JSON = _env("FIREBASE_CREDENTIALS_JSON")
 GOOGLE_APPLICATION_CREDENTIALS = _env("GOOGLE_APPLICATION_CREDENTIALS")
+# Optional Cloud Storage bucket for full-size damage photos (needs the Blaze plan),
+# e.g. my-project.firebasestorage.app. Without it, a compressed copy goes in Firestore.
+FIREBASE_STORAGE_BUCKET = _env("FIREBASE_STORAGE_BUCKET")
+# "memory" forces the in-memory store (tests); anything else uses Firestore when credentials exist.
+STORE_BACKEND = _env("STORE_BACKEND")
 
 # --- Security ---
-# Seed used to derive each agent's Ed25519 signing key. Keep it secret and stable.
+# Seed used to derive every signing key (AP2 ES256 keys; Ed25519 for orders made before AP2 v0.2). Keep it secret and stable.
 SIGNING_SEED = _env("SIGNING_SEED", "dev-only-insecure-seed")
 CRON_SECRET = _env("CRON_SECRET", "dev-cron-secret")
 
