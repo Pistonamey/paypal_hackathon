@@ -86,15 +86,34 @@ def _parts(parts: list[dict], data: dict, text: str) -> str:
     return text
 
 
+def _whole(value: Any) -> Any:
+    """Agents on the official A2A SDK send data parts as protobuf Values, where every number is a float.
+    Turn whole numbers back into ints (200.0 -> 200)."""
+    if isinstance(value, dict):
+        return {k: _whole(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_whole(v) for v in value]
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
 def split_message(message: dict) -> tuple[dict, str]:
     """Data and text from an A2A Message, or from a Task (its status message plus its artifacts)."""
     data: dict[str, Any] = {}
     if message.get("kind") == "task":
-        text = _parts(((message.get("status") or {}).get("message") or {}).get("parts"), data, "")
+        status = message.get("status") or {}
+        text = _parts((status.get("message") or {}).get("parts"), data, "")
+        if status.get("state") in ("failed", "rejected", "canceled"):
+            raise A2AError(text or data.get("error") or f"the agent's task {status.get('state')}")
         for artifact in message.get("artifacts") or []:
             _parts(artifact.get("parts"), data, "")
-        return data, text
-    return data, _parts(message.get("parts"), data, "")
+    else:
+        text = _parts(message.get("parts"), data, "")
+    if data.get("action") == "error":
+        # An agent that can't answer with a JSON-RPC error (e.g. one built on the A2A SDK) says so in data.
+        raise A2AError(str(data.get("error") or text or "agent error"))
+    return _whole(data), text
 
 
 def rpc_result(req_id: Any, message: dict) -> dict:

@@ -147,3 +147,12 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .oc-panel-note { display: flex; align-items: center; gap: 8px; min-height: 22px; margin: 0; padding: 0 12px 9px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
 .oc-panel:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .oc-panel .oc-deal { stroke: var(--c); }
+
+/* A seller agent that runs on its own server, outside Procuro */
+.tag-outside {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #5a2d91;
+  background: #f1e9fb; border-radius: 99px; padding: 1px 7px; flex: none;
+}
+.thread-head p a { color: var(--focus); font-weight: 700; }
+.convo-top, .convo-top b { min-width: 0; }
+.convo-top .convo-price { flex: none; }

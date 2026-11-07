@@ -24,7 +24,7 @@ Orders from before AP2 v0.2 are built by receipt_legacy.py.
 import hashlib
 import time
 
-from . import config, mandates, paypal, receipt_legacy
+from . import a2a, config, mandates, paypal, receipt_legacy
 
 SANDBOX_ACTIVITY = "https://www.sandbox.paypal.com/activity/payment/"
 AP2 = "AP2 v0.2"
@@ -429,6 +429,35 @@ def _signed_amounts(order: dict) -> tuple[float, float | None]:
     return float(payment.get("total") or 0), float(release.get("capture_amount") or 0) if release else None
 
 
+class _OutsideSeller:
+    """An outside seller is paid into its own PayPal account, which Procuro can't read. Ask the seller agent
+    over A2A for PayPal's records of this order (the `payment_status` action)."""
+
+    def __init__(self, order_id: str, seller: dict):
+        self.order_id, self.url, self._answer = order_id, seller["url"], None
+
+    async def _status(self) -> dict:
+        if self._answer is None:
+            try:
+                self._answer, _ = await a2a.send(self.url, {"action": "payment_status", "order_id": self.order_id},
+                                                 "What does PayPal show for this order?", self.order_id)
+            except a2a.A2AError as exc:
+                raise paypal.PayPalError(f"the seller agent couldn't report PayPal's records: {exc}") from None
+        return self._answer
+
+    async def get_authorization(self, _authorization_id: str) -> dict:
+        auth = (await self._status()).get("authorization")
+        if not auth:
+            raise paypal.PayPalError("the seller agent reports no PayPal hold for this order")
+        return auth
+
+    async def get_capture(self, _capture_id: str) -> dict:
+        cap = (await self._status()).get("capture")
+        if not cap:
+            raise paypal.PayPalError("the seller agent reports no PayPal capture for this order")
+        return cap
+
+
 async def paypal_check(order: dict) -> dict:
     """Ask PayPal for its own record of the hold and the capture and compare with the signed steps."""
     p = order.get("paypal") or {}
@@ -436,7 +465,8 @@ async def paypal_check(order: dict) -> dict:
     cur = (order.get("mandate") or {}).get("currency", "USD")
     if not p.get("authorization_id") or not w.get("seller_id"):
         return {"items": [], "note": "Nothing at PayPal yet."}
-    client = paypal.client_for(w["seller_id"])
+    seller = (order.get("sellers") or {}).get(w["seller_id"], {})
+    client = _OutsideSeller(order["id"], seller) if seller.get("outside") else paypal.client_for(w["seller_id"])
     signed, released = _signed_amounts(order)
     items = []
     try:
@@ -463,4 +493,5 @@ async def paypal_check(order: dict) -> dict:
     except paypal.PayPalError as exc:
         return {"items": items, "error": str(exc)}
     return {"items": items, "checked_at": int(time.time()),
-            "environment": "mock" if config.PAYPAL_MODE == "mock" else "sandbox"}
+            "environment": "mock" if config.PAYPAL_MODE == "mock" else "sandbox",
+            "source": "the seller agent's own PayPal account, reported over A2A" if seller.get("outside") else "PayPal"}

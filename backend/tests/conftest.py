@@ -16,6 +16,7 @@ os.environ.update({
     "FIREBASE_STORAGE_BUCKET": "",
     "PUBLIC_BASE_URL": "http://testserver",
     "SELLER_AGENT_URLS": "",
+    "SELLER_AGENTS_ONLY": "",
 })
 
 import pytest  # noqa: E402

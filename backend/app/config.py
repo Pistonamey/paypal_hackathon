@@ -48,8 +48,11 @@ def seller_paypal_credentials(seller_id: str) -> tuple[str, str]:
 # --- URLs ---
 FRONTEND_URL = _env("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 PUBLIC_BASE_URL = _env("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
-# Comma-separated agent base URLs. Defaults to the seller agents hosted by this app.
+# Outside seller agents (comma-separated agent URLs, e.g. https://northbox.example.com/agents/northbox).
+# The buying agent deals with these as well as the three seller agents hosted by this app.
 SELLER_AGENT_URLS = [u.strip().rstrip("/") for u in _env("SELLER_AGENT_URLS").split(",") if u.strip()]
+# For testing an outside seller: deal ONLY with SELLER_AGENT_URLS, not the three built-in sellers.
+SELLER_AGENTS_ONLY = _env("SELLER_AGENTS_ONLY").lower() in ("1", "true", "yes")
 CORS_ORIGINS = [o.strip() for o in _env("CORS_ORIGINS", FRONTEND_URL).split(",") if o.strip()]
 
 # --- Firebase / Firestore ---

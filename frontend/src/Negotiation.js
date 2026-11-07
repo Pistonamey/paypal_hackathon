@@ -138,6 +138,7 @@ export default function Negotiation({ order, messages }) {
                   <span className="convo-sub">
                     {sid === winner ? <span className="chip chip-win">Your deal</span>
                       : <span className={`chip chip-${state.tone}`}>{state.label}</span>}
+                    {s.outside && <span className="tag-outside" title="Runs on its own server, outside Procuro">outside</span>}
                     <span className="convo-preview">{busy ? "typing…" : last?.text}</span>
                   </span>
                 </span>
@@ -185,7 +186,10 @@ function Thread({ id, order, list, colour, points, talking }) {
             <span className="avatar" style={{ background: colour[id] }} aria-hidden="true">{initials(s.name)}</span>
             <div>
               <h3>{s.name}</h3>
-              <p>Seller agent over A2A · {id === order.winner?.seller_id ? "your deal"
+              <p>{s.outside ? <>Outside seller agent on its own server ·{" "}
+                <a href={`${s.url}/.well-known/agent-card.json`} target="_blank" rel="noreferrer">agent card</a> · </>
+                : "Seller agent over A2A · "}
+                {id === order.winner?.seller_id ? "your deal"
                 : s.status === "not_picked" ? "not picked: another seller was cheaper" : state.label.toLowerCase()}</p>
             </div>
             {latest && (

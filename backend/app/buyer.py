@@ -227,7 +227,36 @@ def choose_product(order_id: str, product_id: str, quantity: int) -> dict:
 # ---------------------------------------------------------------- negotiation
 
 def _seller_urls() -> list[str]:
-    return config.SELLER_AGENT_URLS or [sellers.agent_url(s) for s in sellers.SELLERS]
+    if config.SELLER_AGENTS_ONLY and config.SELLER_AGENT_URLS:
+        return list(config.SELLER_AGENT_URLS)
+    built_in = [sellers.agent_url(s) for s in sellers.SELLERS]
+    return built_in + [u for u in config.SELLER_AGENT_URLS if u not in built_in]
+
+
+def card_url(card: dict, fallback: str) -> str:
+    """Where to send A2A messages: `url` (A2A v0.3 cards) or the JSON-RPC interface (A2A v1.0 cards)."""
+    if card.get("url"):
+        return card["url"]
+    for iface in card.get("supportedInterfaces") or []:
+        if iface.get("protocolBinding", "JSONRPC").upper() == "JSONRPC" and iface.get("url"):
+            return iface["url"]
+    return fallback
+
+
+def card_jwk(card: dict) -> dict | None:
+    """The agent's public signing key: our cards put it in `signing`; A2A v1.0 cards (which can't carry
+    custom fields) put it in the AP2 extension's params."""
+    if (card.get("signing") or {}).get("jwk"):
+        return card["signing"]["jwk"]
+    for ext in (card.get("capabilities") or {}).get("extensions") or []:
+        if ext.get("uri") == mandates.EXTENSION_URI and ((ext.get("params") or {}).get("signing") or {}).get("jwk"):
+            return ext["params"]["signing"]["jwk"]
+    return None
+
+
+def is_outside(seller: dict) -> bool:
+    """A seller agent that isn't one of the three hosted by this app."""
+    return not str(seller.get("url", "")).startswith(f"{config.PUBLIC_BASE_URL}/agents/")
 
 
 async def _buyer_move(order: dict, sid: str, offer: dict, competing: dict | None, round_no: int) -> dict:
@@ -309,8 +338,10 @@ async def negotiate(order_id: str) -> None:
                 c = await a2a.fetch_card(url)
                 sid = _seller_id(url)
                 cards[sid] = c
-                order["sellers"][sid] = {"name": c["name"], "url": c["url"], "status": "contacted", "offers": [],
-                                         "jwk": (c.get("signing") or {}).get("jwk")}
+                order["sellers"][sid] = {"name": c["name"], "url": card_url(c, url), "status": "contacted",
+                                         "offers": [], "jwk": card_jwk(c)}
+                if is_outside(order["sellers"][sid]):
+                    order["sellers"][sid]["outside"] = True
             except Exception as exc:  # noqa: BLE001
                 log.warning("agent card fetch failed for %s: %s", url, exc)
         _save(order)
