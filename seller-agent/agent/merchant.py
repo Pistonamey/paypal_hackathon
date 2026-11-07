@@ -16,9 +16,9 @@ import datetime as dt
 from . import config, mandates, paypal, trust
 from .store import store
 
-SELLER = {
-    "markup": 1.30, "floor": 1.10, "lead_days": 4, "max_qty": 3000,
-    "tagline": "Independent box maker on recycled board. Runs on its own server, outside Procuro.",
+SELLER = {  # set per seller through environment variables (see config.py)
+    "markup": config.MARKUP, "floor": config.FLOOR, "lead_days": config.LEAD_DAYS, "max_qty": config.MAX_QTY,
+    "tagline": config.TAGLINE,
 }
 FALLBACK_UNIT_COST = 2.00
 WHOLESALE_SHARE = 0.70
@@ -78,7 +78,7 @@ async def _quote(order_id: str, data: dict) -> tuple[dict, str]:
                      "product_id": (product or {}).get("id"), "image": (product or {}).get("image")})
     offer = {"action": "offer", "seller_id": config.AGENT_ID, "unit_price": list_price, "quantity": qty,
              "total": _r(list_price * qty), "currency": currency, "delivery_date": delivery}
-    return offer, (f"Hi from NorthBox! We make every box here on recycled board. {qty} at {list_price:.2f} "
+    return offer, (f"{config.GREETING} {qty} at {list_price:.2f} "
                    f"{currency} each, delivered by {delivery}.")
 
 
@@ -96,7 +96,7 @@ async def _counter(order_id: str, data: dict) -> tuple[dict, str]:
     else:
         price = floor if ses["rounds"] >= 3 else _r(max(floor, (current + max(proposed, floor)) / 2))
         choice = "counter"
-        msg = (f"That's below what the board costs us. Our best is {price:.2f} {cur} per unit." if price == floor
+        msg = (f"That's below our cost. Our best is {price:.2f} {cur} per unit." if price == floor
                else f"We can't go that low. We can meet you at {price:.2f} {cur} per unit.")
     price = min(price, current)
     ses["current"] = price

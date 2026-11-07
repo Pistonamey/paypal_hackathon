@@ -47,6 +47,15 @@ STORE_COLLECTION = _env("STORE_COLLECTION", f"{AGENT_ID}_agent")
 
 DEFAULT_CURRENCY = "USD"
 
+# How this seller does business. Run the same code as several sellers by giving each its own values.
+# Prices are multiples of the item's cost (about 70% of the lowest retail price Channel3 finds).
+MARKUP = float(_env("MARKUP", "1.30"))        # first quote = cost x MARKUP
+FLOOR = float(_env("FLOOR", "1.10"))          # never sells below cost x FLOOR
+LEAD_DAYS = int(_env("LEAD_DAYS", "4"))       # days to make and ship
+MAX_QTY = int(_env("MAX_QTY", "3000"))        # bigger orders are declined
+TAGLINE = _env("TAGLINE", "Independent box maker on recycled board. Runs on its own server, outside Procuro.")
+GREETING = _env("GREETING", "Hi from NorthBox! We make every box here on recycled board.")
+
 
 def seller_paypal_credentials(_seller_id: str = "") -> tuple[str, str]:
     return PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET
