@@ -81,3 +81,9 @@
 /* Deliveries that can still move: a grab handle look */
 .cal .b-cal-event-wrap[data-event-id$="-arrived"] { cursor: grab; }
 .cal .b-dragging .b-cal-event, .cal .b-cal-event-wrap.b-dragging { cursor: grabbing; }
+
+/* An outside seller agent's row on the Sellers board */
+.sb-outside {
+  font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: #5a2d91; background: #f1e9fb; border-radius: 99px; padding: 1px 7px; margin-right: 4px;
+}

@@ -1,5 +1,6 @@
 """Procuro API: the buyer app's REST API plus the A2A endpoints of every hosted agent."""
 import base64
+import datetime as dt
 import logging
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile
@@ -275,7 +276,20 @@ async def ask(order_id: str, body: QuestionIn) -> dict:
 @app.get("/api/sellers/schedule")
 async def seller_schedule():
     """The Sellers board: each seller agent's production slots, bookings and fully booked days."""
-    return schedule.board(sellers.SELLERS)
+    board = schedule.board(sellers.SELLERS)
+    # Outside seller agents: only the orders placed with them from here (their own schedule is private).
+    outside = await buyer.outside_board(dt.date.fromisoformat(board["today"]))
+    if outside["resources"]:
+        board["resources"] += outside["resources"]
+        board["events"] += outside["events"]
+        today = dt.date.fromisoformat(board["today"])
+        days = [dt.date.fromisoformat(e["startDate"]) for e in outside["events"]] + \
+               [dt.date.fromisoformat(e["endDate"]) + dt.timedelta(days=2) for e in outside["events"]]
+        if days:
+            board["startDate"] = max(min([dt.date.fromisoformat(board["startDate"])] + days),
+                                     today - dt.timedelta(days=14)).isoformat()
+            board["endDate"] = max([dt.date.fromisoformat(board["endDate"])] + days).isoformat()
+    return board
 
 
 @app.get("/api/sellers")

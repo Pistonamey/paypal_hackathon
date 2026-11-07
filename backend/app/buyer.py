@@ -1108,3 +1108,57 @@ async def reschedule(order_id: str, new_date: str) -> dict:
         f"same price.{held}{note}", kind="decision",
         data={"amendment_id": mandates.sha256_b64url(amendment) if amendment else None})
     return {"accepted": True, "order": order, "message": f"{seller_name} will deliver on {wanted}."}
+
+
+# ---------------------------------------------------------------- the Sellers board, for outside sellers
+
+BOARD_STATUS = {"awaiting_approval": "reserved", "awaiting_paypal": "reserved", "held": "confirmed",
+                "resolving": "confirmed", "escalated": "disputed", "completed": "delivered", "settled": "delivered"}
+
+
+async def outside_board(today: dt.date) -> dict:
+    """Rows for the outside seller agents on the Sellers board.
+
+    Procuro can't see an outside seller's production schedule (it runs its own business on its own
+    server), so its row shows only the orders placed with it from here: from the day the order was made
+    to its delivery date, coloured by where the money is.
+    """
+    rows: dict[str, dict] = {}
+    events: list[dict] = []
+    for order in store.list_orders():
+        w = order.get("winner") or {}
+        sid = w.get("seller_id")
+        seller = (order.get("sellers") or {}).get(sid or "", {})
+        status = BOARD_STATUS.get(order.get("status"))
+        if not (sid and seller.get("outside") and status and w.get("delivery_date")):
+            continue
+        row = rows.setdefault(sid, {"id": sid, "name": seller.get("name") or sid, "url": seller.get("url"),
+                                    "outside": True, "inProgress": 0})
+        if status in ("reserved", "confirmed"):
+            row["inProgress"] += 1
+        p = order.get("paypal") or {}
+        created = dt.datetime.fromtimestamp(order.get("created_at") or _now(), dt.timezone.utc).date()
+        delivery = dt.date.fromisoformat(w["delivery_date"][:10])
+        m = order.get("mandate") or {}
+        events.append({
+            "id": f"{sid}-{order['id']}", "resourceId": sid, "orderId": order["id"],
+            "name": f"{m.get('quantity')} x {m.get('item')}",
+            "startDate": min(created, delivery).isoformat(),
+            "endDate": (delivery + dt.timedelta(days=1)).isoformat(),
+            "deliveryDate": w["delivery_date"][:10], "plannedDelivery": w.get("first_delivery_date"),
+            "status": status, "total": w.get("total"),
+            "captured": (0.0 if p.get("voided") else p.get("captured")) if status == "delivered" else None,
+            "currency": m.get("currency", "USD"), "outside": True,
+        })
+    # Outside sellers you haven't ordered from yet still get a row (named from their agent card).
+    for url in config.SELLER_AGENT_URLS:
+        sid = _seller_id(url)
+        if sid in rows:
+            continue
+        try:
+            card = await asyncio.wait_for(a2a.fetch_card(url), timeout=4)
+            name = card.get("name") or sid
+        except Exception:  # noqa: BLE001 - unreachable right now: still list it
+            name = sid
+        rows[sid] = {"id": sid, "name": name, "url": url, "outside": True, "inProgress": 0}
+    return {"resources": list(rows.values()), "events": events}

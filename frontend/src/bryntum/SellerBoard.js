@@ -22,6 +22,9 @@ const STATUS = {
   disputed: { label: "In dispute", color: "red" },
 };
 
+// Bryntum records only expose the fields they know as properties; extra ones live in `data`.
+const isOutside = (r) => Boolean(r?.outside ?? r?.data?.outside ?? r?.originalData?.outside);
+
 function statusOf(e) {
   return e.status === "delivered" && e.captured != null && e.total != null && e.captured < e.total - 0.005
     ? "settled"
@@ -93,10 +96,13 @@ export default function SellerBoard({ onOpenOrder }) {
           width: narrow ? 150 : 190,
           htmlEncode: false,
           renderer: ({ record }) =>
-            `<div class="sb-seller"><b>${enc(record.name)}</b>` +
-            `<span>${enc(record.slots)} slot${record.slots > 1 ? "s" : ""} · ${enc(record.leadDays)}-day lead</span>` +
-            (narrow ? `<span>Next free: ${enc(day(record.nextDelivery))}</span>` : "") +
-            `</div>`,
+            isOutside(record)
+              ? `<div class="sb-seller"><b>${enc(record.name)}</b>` +
+                `<span><i class="sb-outside">Outside</i> your orders only</span></div>`
+              : `<div class="sb-seller"><b>${enc(record.name)}</b>` +
+                `<span>${enc(record.slots)} slot${record.slots > 1 ? "s" : ""} · ${enc(record.leadDays)}-day lead</span>` +
+                (narrow ? `<span>Next free: ${enc(day(record.nextDelivery))}</span>` : "") +
+                `</div>`,
         },
         {
           text: "Next free delivery",
@@ -105,6 +111,11 @@ export default function SellerBoard({ onOpenOrder }) {
           hidden: narrow, // on a phone the timeline needs the room; the tooltip still tells the story
           htmlEncode: false,
           renderer: ({ record }) => {
+            if (isOutside(record)) {
+              // Its schedule is private to it: your agent learns its dates when it asks for a quote.
+              return `<div class="sb-next"><b>Asks when quoting</b>` +
+                `<span>${enc(record.inProgress ?? record.data?.inProgress ?? 0)} of your orders in progress</span></div>`;
+            }
             const busy = record.nextStart > (data?.today || "");
             return `<div class="sb-next ${busy ? "is-busy" : ""}"><b>${enc(day(record.nextDelivery))}</b>` +
               `<span>${busy ? `Booked until ${enc(day(record.nextStart))}` : `${enc(record.inProgress)} of ${enc(record.slots)} in use`}</span></div>`;
@@ -122,7 +133,9 @@ export default function SellerBoard({ onOpenOrder }) {
       eventTooltipFeature: {
         template: ({ eventRecord: e }) =>
           `<div class="tip"><b>${enc(e.name)}</b>` +
-          `<div>Production starts ${enc(day(e.startDate))}, delivery ${enc(day(e.deliveryDate))}</div>` +
+          (isOutside(e)
+            ? `<div>Ordered ${enc(day(e.startDate))}, delivery ${enc(day(e.deliveryDate))}</div>`
+            : `<div>Production starts ${enc(day(e.startDate))}, delivery ${enc(day(e.deliveryDate))}</div>`) +
           (e.plannedDelivery && e.plannedDelivery !== e.deliveryDate
             ? `<div>Promised for ${enc(day(e.plannedDelivery))}</div>` : "") +
           `<div>${enc(STATUS[e.status]?.label || e.status)}: ${enc(money(e.total, e.currency))}` +
@@ -157,7 +170,8 @@ export default function SellerBoard({ onOpenOrder }) {
           <h1>Sellers</h1>
           <p className="board-sub">
             Each seller agent can prepare only a few orders at once. When its slots are full (shaded), its next quote
-            moves to the first free day, and your agent weighs that against your deadline.
+            moves to the first free day, and your agent weighs that against your deadline. Outside sellers run on
+            their own servers and keep their schedules private, so their rows show only your orders with them.
           </p>
         </div>
         <p className="board-count">
