@@ -166,6 +166,8 @@ export default function App() {
   );
 }
 
+const RECENT = 6; // orders shown on the start page before "Show all"
+
 function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
   const [text, setText] = useState(exampleRequest());
   const [deadline, setDeadline] = useState(inDays(7));
@@ -177,6 +179,7 @@ function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
     api.listOrders().then(setOrders).catch(() => setOrders([]));
   }, []);
 
+  const [showAll, setShowAll] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -218,7 +221,7 @@ function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
         <section className="history">
           <h2>Earlier orders</h2>
           <ul>
-            {orders.slice(0, 6).map((o) => (
+            {(showAll ? orders : orders.slice(0, RECENT)).map((o) => (
               <li key={o.id}>
                 <button className="history-row" onClick={() => onOpen(o.id)}>
                   <span className="history-what">
@@ -233,6 +236,11 @@ function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
               </li>
             ))}
           </ul>
+          {orders.length > RECENT && (
+            <button type="button" className="btn btn-small history-more" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Show only the latest" : `Show all ${orders.length} orders`}
+            </button>
+          )}
         </section>
       )}
     </main>
@@ -251,6 +259,7 @@ const STATUS_TEXT = {
   escalated: "Dispute ready",
   no_deal: "No deal",
   failed: "Stopped",
+  cancelled: "Cancelled",
 };
 
 function StatusPill({ status }) {

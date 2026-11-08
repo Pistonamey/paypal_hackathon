@@ -38,7 +38,7 @@ def _month_start(now: float | None = None) -> float:
 def committed(order: dict) -> float:
     """Money this order has taken or is holding: what was captured once it closed, the hold before."""
     p = order.get("paypal") or {}
-    if p.get("voided"):
+    if p.get("voided") or p.get("abandoned"):  # abandoned: cancelled in a sandbox cleanup
         return 0.0
     if p.get("capture_id") or order.get("status") in ("completed", "settled"):
         return float(p.get("captured") or 0)

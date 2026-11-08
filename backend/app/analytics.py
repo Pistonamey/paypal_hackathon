@@ -19,6 +19,7 @@ STATUS_GROUP = {
     "escalated": "Dispute",
     "no_deal": "No deal",
     "failed": "No deal",
+    "cancelled": "Cancelled",
 }
 
 
@@ -37,7 +38,8 @@ def _rows_for_order(order: dict) -> tuple[dict, list[dict], list[dict]]:
     sid = w.get("seller_id")
     seller_entry = (order.get("sellers") or {}).get(sid or "", {})
     opening = seller_entry.get("opening_total", w.get("total"))
-    held = p.get("authorized_amount") if p.get("authorization_id") and not p.get("capture_id") and not p.get("voided") else 0
+    held = (p.get("authorized_amount") if p.get("authorization_id") and not p.get("capture_id")
+            and not p.get("voided") and not p.get("abandoned") else 0)
     captured = p.get("captured") or 0
     released = p.get("released") or 0
     created = order.get("created_at", 0)

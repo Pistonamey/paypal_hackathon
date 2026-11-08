@@ -12,3 +12,4 @@ serviceAccount*.json
 frontend/public/bryntum/
 backend/vendor/.logs/
 *.zip
+backend/backups/

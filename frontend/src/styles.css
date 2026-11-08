@@ -81,6 +81,7 @@ textarea:focus, .ask input:focus { border-color: var(--ink); outline: none; box-
 .pill-held, .pill-awaiting_approval, .pill-awaiting_paypal { background: var(--held); color: var(--held-ink); }
 .pill-completed, .pill-settled { background: #d3ecdf; color: #155a40; }
 .pill-escalated, .pill-failed, .pill-resolving { background: #f6d8d1; color: #7d2a1c; }
+.pill-cancelled { background: #e9edf2; color: #5b6b7f; }
 
 /* order layout */
 .order { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 32px; padding-top: 28px; align-items: start; }
@@ -270,3 +271,4 @@ textarea:focus, .ask input:focus { border-color: var(--ink); outline: none; box-
 .move-result { margin: 0; font-size: 14px; font-weight: 700; padding: 6px 10px; border-radius: 4px; }
 .move-result.is-ok { background: #e3f3ea; color: #155a40; }
 .move-result.is-no { background: #fff4e5; color: #7a4a00; }
+.history-more { margin: 14px 0 0; }
