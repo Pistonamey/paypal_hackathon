@@ -65,11 +65,12 @@ export default function App() {
       api.walletFinish(query.approval_token_id)
         .then((w) => {
           setWallet(w);
-          setNotice("PayPal connected. Deals under your limit will now be held without a trip to PayPal.");
+          setNotice(`PayPal connected${w.payer_email ? ` as ${w.payer_email}` : ""}. Deals under your limit will now be ` +
+            "held without a trip to PayPal.");
         })
         .catch((e) => setError(e.message));
     } else {
-      setError("You closed PayPal before connecting. Nothing changed.");
+      setError("You closed PayPal before connecting. Nothing changed: any PayPal account that was connected still is.");
     }
   }, [query, setWallet]);
 

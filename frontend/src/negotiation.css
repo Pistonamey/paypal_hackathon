@@ -156,3 +156,27 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .thread-head p a { color: var(--focus); font-weight: 700; }
 .convo-top, .convo-top b { min-width: 0; }
 .convo-top .convo-price { flex: none; }
+
+/* One seller at a time: tabs to switch, then that seller's chart (follows the open conversation). */
+.oc-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.oc-tab {
+  display: flex; align-items: center; gap: 7px; min-width: 0; padding: 7px 12px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--sheet); color: var(--ink); font: inherit; font-size: 13.5px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.oc-tab i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.oc-tab b { font-weight: 700; white-space: nowrap; }
+.oc-tab strong { font: 800 14px var(--display); }
+.oc-tab .chip { font-size: 11.5px; padding: 1px 8px; }
+.oc-tab:hover { border-color: var(--ink-soft); }
+.oc-tab.is-on { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--sheet)); }
+.oc-tab.is-out { opacity: .55; }
+.oc-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.oc-one { min-width: 0; }
+.oc-one .oc-panel { cursor: default; }
+.oc-one .oc-panel:hover { border-color: var(--c); }
+.oc-panel-moves { margin-left: auto; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+@media (max-width: 520px) { .oc-panel-moves { display: none; } }
+/* A seller out of the race fades its offers, not the axes. */
+.oc-one .oc-panel.is-out svg { opacity: 1; }
+.oc-one .oc-panel.is-out :is(.oc-pt, .oc-line, .oc-counter-line, .oc-label, .oc-label-sub) { opacity: .45; }

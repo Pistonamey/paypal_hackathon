@@ -33,6 +33,7 @@ export function WalletCard({ wallet, onChange, onError, onRetry }) {
   const [auto, setAuto] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     if (wallet?.monthly_limit) setCap(String(wallet.monthly_limit));
@@ -146,17 +147,35 @@ export function WalletCard({ wallet, onChange, onError, onRetry }) {
       </div>
       {confirmOff ? (
         <div className="wallet-confirm" role="alert">
-          <p>Disconnect PayPal? Your agent will need you to approve every payment on PayPal again.</p>
+          <p>Log out of PayPal? Procuro forgets this PayPal account, and every payment needs approving on PayPal again
+            until you connect one.</p>
           <div className="btn-row">
             <button type="button" className="btn btn-small" disabled={busy}
               onClick={() => run(async () => { onChange(await api.walletDisconnect()); setConfirmOff(false); })}>
-              <Busy busy={busy} text="Disconnecting">Yes, disconnect</Busy>
+              <Busy busy={busy} text="Logging out">Yes, log out</Busy>
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setConfirmOff(false)}>Keep it</button>
+            <button type="button" className="btn btn-small" onClick={() => setConfirmOff(false)}>Stay connected</button>
           </div>
         </div>
       ) : (
-        <button type="button" className="link wallet-off" onClick={() => setConfirmOff(true)}>Disconnect PayPal</button>
+        <div className="wallet-account">
+          <button type="button" className="btn btn-small" disabled={busy}
+            onClick={() => {
+              setSwitching(true);
+              run(async () => {
+                // The current account stays connected until the new one is approved on PayPal.
+                const { approve_url: url } = await api.walletConnect(limit || 1000, !!wallet.auto_pay);
+                window.location.href = url;
+              }).finally(() => setSwitching(false));
+            }}>
+            <Busy busy={busy && switching} text="Opening PayPal">Sign in with another PayPal account</Busy>
+          </button>
+          <button type="button" className="link wallet-off" onClick={() => setConfirmOff(true)}>Log out of PayPal</button>
+          <p className="hint">
+            Switching keeps this account until the new one is approved. On PayPal's page, click <b>Not you?</b> (or log
+            out there) if it signs you straight back in as {wallet.payer_email || "this account"}.
+          </p>
+        </div>
       )}
     </section>
   );

@@ -54,3 +54,7 @@
 .wallet-warn { border-color: var(--problem); }
 .wallet-warn .btn-small { justify-self: start; margin-left: 0; }
 .wallet-pending { background: #fff8dc; border-left: 3px solid var(--held-ink); padding: 8px 10px; border-radius: 4px; font-size: 14px !important; }
+.wallet-account { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.wallet-account .btn-small { margin-left: 0; }
+.wallet-account .wallet-off { justify-self: auto; }
+.wallet-account .hint { flex-basis: 100%; margin: 0; font-size: 13px; }

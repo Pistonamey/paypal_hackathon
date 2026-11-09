@@ -305,8 +305,10 @@ function leaderOf(order, points, sellerIds) {
   return best;
 }
 
-// One small panel per seller, side by side on the same price scale: every seller is visible at once,
-// and inside each panel the seller's offers come down while your agent's counters come up to meet them.
+// One seller's negotiation at a time, the one whose conversation is open below: its offers come down
+// while your agent's counters come up to meet them. A row of seller tabs above switches it (and the
+// conversation); opening another conversation switches it too. Every seller shares one price scale,
+// so switching doesn't move the budget lines.
 function OfferChart({ order, points, sellerIds, colour, winner, current, onPick }) {
   const m = order.mandate;
   const cur = m.currency;
@@ -314,12 +316,10 @@ function OfferChart({ order, points, sellerIds, colour, winner, current, onPick 
   const wrap = useRef(null);
   const grid = useRef(null);
   const total = useWidth(grid, 720);
-  const stacked = total < 640;
-  const gap = 12;
-  // Each panel's inner width (panels have a 1.5px border on each side).
-  const W = (stacked ? total : Math.floor((total - gap * (sellerIds.length - 1)) / sellerIds.length)) - 3;
-  const H = stacked ? 118 : 150;
-  const PAD = { l: 44, r: 14, t: 12, b: 10 };
+  const narrow = total < 520;
+  const W = total - 3; // the panel has a 1.5px border on each side
+  const H = narrow ? 170 : 220;
+  const PAD = { l: 52, r: narrow ? 64 : 84, t: 16, b: 14 };
 
   const values = [...points.map((p) => p.total), m.budget_max, m.approval_threshold].filter((v) => v != null);
   const lo0 = Math.min(...values);
@@ -342,13 +342,23 @@ function OfferChart({ order, points, sellerIds, colour, winner, current, onPick 
       counters: mine.filter((p) => p.side === "buyer"),
     };
   });
-  // Same x scale in every panel, so a seller that dropped out early visibly stops early.
-  const maxMoves = Math.max(4, ...series.map((s) => s.moves.length));
+  const lead = leaderOf(order, points, sellerIds);
+  const busy = ACTIVE.has(order.status);
+  // The seller on show: the open conversation, else whoever is winning.
+  const shown = sellerIds.includes(current) ? current : lead?.sid || winner || sellerIds[0];
+  const one = series.find((s) => s.sid === shown) || series[0];
+  const maxMoves = Math.max(4, one.moves.length);
   const X = (i) => PAD.l + (i / (maxMoves - 1)) * (W - PAD.l - PAD.r);
   const path = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${X(p.move).toFixed(1)},${Y(p.total).toFixed(1)}`).join("");
 
-  const lead = leaderOf(order, points, sellerIds);
-  const busy = ACTIVE.has(order.status);
+  const noteOf = (s) => {
+    const lastAsk = s.asks.at(-1);
+    const lastCounter = s.counters.at(-1);
+    return s.out ? (SELLER_STATE[s.status]?.label || s.status)
+      : s.status === "agreed" ? `Agreed at ${money(lastAsk?.total, cur)}`
+      : lastAsk && lastCounter ? `${money(Math.abs(lastAsk.total - lastCounter.total), cur)} apart`
+      : lastAsk ? "First quote in" : "Waiting for a quote";
+  };
 
   const show = (p, sid, e) => {
     const r = wrap.current?.getBoundingClientRect();
@@ -389,50 +399,70 @@ function OfferChart({ order, points, sellerIds, colour, winner, current, onPick 
         </ul>
       </figcaption>
 
-      <div ref={grid} className={`oc-panels ${stacked ? "is-stacked" : ""}`} style={{ "--n": sellerIds.length }}>
-        {series.map((s, idx) => {
+      <div className="oc-tabs" role="tablist" aria-label="Show a seller's negotiation">
+        {series.map((s) => {
+          const lastAsk = s.asks.at(-1);
+          const isLead = lead?.sid === s.sid;
+          return (
+            <button key={s.sid} type="button" role="tab" aria-selected={s.sid === one.sid}
+              className={`oc-tab ${s.sid === one.sid ? "is-on" : ""} ${s.out ? "is-out" : ""} ${isLead ? "is-lead" : ""}`}
+              style={{ "--c": colour[s.sid] }} onClick={() => onPick?.(s.sid)}>
+              <i aria-hidden="true" />
+              <b>{s.name}</b>
+              <strong>{lastAsk ? money(lastAsk.total, cur) : "–"}</strong>
+              {isLead && <span className={`chip ${lead.final ? "chip-win" : "chip-busy"}`}>{lead.final ? "Your deal" : "Winning"}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div ref={grid} className="oc-one">
+        {(() => {
+          const s = one;
           const lastAsk = s.asks.at(-1);
           const lastCounter = s.counters.at(-1);
           const isLead = lead?.sid === s.sid;
-          const agreed = s.status === "agreed";
-          const note = s.out ? (SELLER_STATE[s.status]?.label || s.status)
-            : agreed ? `Agreed at ${money(lastAsk?.total, cur)}`
-            : lastAsk && lastCounter ? `${money(Math.abs(lastAsk.total - lastCounter.total), cur)} apart`
-            : lastAsk ? "First quote in" : "Waiting for a quote";
-          const ticksHere = idx === 0 || stacked;
+          const note = noteOf(s);
+          const tag = (p, cls) => p && (
+            <text x={X(p.move) + (isLead && p === lastAsk ? 19 : 12)} y={Y(p.total) + 4} className={cls}>{money(p.total, cur)}</text>
+          );
           return (
-            <div key={s.sid} role="button" tabIndex={0}
-              className={`oc-panel ${s.out ? "is-out" : ""} ${isLead ? "is-lead" : ""} ${current === s.sid ? "is-on" : ""}`}
-              style={{ "--c": colour[s.sid] }} onClick={() => onPick?.(s.sid)}
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onPick?.(s.sid)}
-              aria-label={`${s.name}: ${note}. Open the conversation.`}>
+            <div key={s.sid} className={`oc-panel is-on ${s.out ? "is-out" : ""} ${isLead ? "is-lead" : ""}`}
+              style={{ "--c": colour[s.sid] }} role="tabpanel" aria-label={`${s.name}: ${note}`}>
               <div className="oc-panel-head">
                 <i aria-hidden="true" />
                 <b>{s.name}</b>
-                <strong>{lastAsk ? money(lastAsk.total, cur) : "–"}</strong>
+                {order.sellers[s.sid].outside && <span className="tag-outside">outside</span>}
+                <span className="oc-panel-moves">{s.asks.length} offer{s.asks.length === 1 ? "" : "s"} · {s.counters.length} counter{s.counters.length === 1 ? "" : "s"}</span>
               </div>
               <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
                 {ticks.map((t) => (
                   <g key={t}>
                     <line x1={PAD.l} x2={W - PAD.r} y1={Y(t)} y2={Y(t)} className="oc-grid" />
-                    {ticksHere && <text x={PAD.l - 6} y={Y(t) + 4} className="oc-tick" textAnchor="end">{money(t, cur).replace(/\.00$/, "")}</text>}
+                    <text x={PAD.l - 8} y={Y(t) + 4} className="oc-tick" textAnchor="end">{money(t, cur).replace(/\.00$/, "")}</text>
                   </g>
                 ))}
                 <line x1={PAD.l} x2={W - PAD.r} y1={Y(m.budget_max)} y2={Y(m.budget_max)} className="oc-budget" />
+                <text x={W - PAD.r + 6} y={Y(m.budget_max) + 4} className="oc-axis">Budget</text>
                 {m.approval_threshold < m.budget_max && (
-                  <line x1={PAD.l} x2={W - PAD.r} y1={Y(m.approval_threshold)} y2={Y(m.approval_threshold)} className="oc-limit" />
+                  <>
+                    <line x1={PAD.l} x2={W - PAD.r} y1={Y(m.approval_threshold)} y2={Y(m.approval_threshold)} className="oc-limit" />
+                    <text x={W - PAD.r + 6} y={Y(m.approval_threshold) + 4} className="oc-axis">Ask me</text>
+                  </>
                 )}
                 {s.counters.length > 1 && <path d={path(s.counters)} className="oc-counter-line" />}
                 {s.asks.length > 1 && <path d={path(s.asks)} className="oc-line" />}
                 {s.counters.map((p) => (
-                  <circle key={p.seq} cx={X(p.move)} cy={Y(p.total)} r={5} className="oc-pt oc-pt-counter"
+                  <circle key={p.seq} cx={X(p.move)} cy={Y(p.total)} r={6} className="oc-pt oc-pt-counter"
                     onMouseEnter={(e) => show(p, s.sid, e)} />
                 ))}
                 {s.asks.map((p) => (
-                  <circle key={p.seq} cx={X(p.move)} cy={Y(p.total)} r={5.5} className="oc-pt"
+                  <circle key={p.seq} cx={X(p.move)} cy={Y(p.total)} r={6.5} className="oc-pt"
                     onMouseEnter={(e) => show(p, s.sid, e)} />
                 ))}
-                {isLead && lastAsk && <circle cx={X(lastAsk.move)} cy={Y(lastAsk.total)} r={11} className="oc-deal" />}
+                {tag(lastAsk, "oc-label")}
+                {lastCounter && (!lastAsk || Math.abs(Y(lastCounter.total) - Y(lastAsk.total)) > 14) && tag(lastCounter, "oc-label-sub")}
+                {isLead && lastAsk && <circle cx={X(lastAsk.move)} cy={Y(lastAsk.total)} r={13} className="oc-deal" />}
                 {!s.moves.length && (
                   <text x={(PAD.l + W - PAD.r) / 2} y={H / 2} textAnchor="middle" className="oc-wait">{busy ? "Quoting…" : "No quote"}</text>
                 )}
@@ -443,7 +473,7 @@ function OfferChart({ order, points, sellerIds, colour, winner, current, onPick 
               </p>
             </div>
           );
-        })}
+        })()}
       </div>
 
       {hover && (
