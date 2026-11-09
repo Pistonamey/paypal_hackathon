@@ -17,7 +17,7 @@ const SellerBoard = lazy(() => import("./bryntum/SellerBoard"));
 const ACTIVE = new Set(["negotiating", "awaiting_paypal", "resolving"]);
 
 function exampleRequest() {
-  return "100 vacuum bags. Budget $300. Ask me before paying anything over $200.";
+  return "500 paper coffee cups with lids, 12 oz. Budget $300. Ask me before paying anything over $200.";
 }
 
 function inDays(n) {

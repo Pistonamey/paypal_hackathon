@@ -1,9 +1,9 @@
 """Share a bulk order with a partner business, billed through PayPal's official Agent Toolkit.
 
-Maya buys 200 cake boxes at a negotiated bulk price and the café next door takes 60 of them. Procuro
-bills the café for its share with a real PayPal invoice: itemized (what, how many, the negotiated unit
+Sam buys 1,000 coffee cups at a negotiated bulk price and the bakery next door takes 300 of them. Procuro
+bills the bakery for its share with a real PayPal invoice: itemized (what, how many, the negotiated unit
 price, which order and seller it came from), sent by PayPal with a pay link, plus a QR code to pay on
-the spot. When the café pays, the order shows it.
+the spot. When the bakery pays, the order shows it.
 
 The invoices go through PayPal's Agent Toolkit (`paypal_agent_toolkit`, vendored unchanged in
 backend/vendor, see VENDORED.md): `create_invoice`, `send_invoice`, `generate_invoice_qr_code` and
@@ -11,7 +11,7 @@ backend/vendor, see VENDORED.md): `create_invoice`, `send_invoice`, `generate_in
 framework adapters call them. The toolkit is synchronous, so calls run in a worker thread.
 
 In this sandbox the invoices come from Procuro's PayPal app account. In production they'd be issued
-from Maya's own PayPal Business account.
+from Sam's own PayPal Business account.
 """
 import asyncio
 import json
@@ -88,7 +88,7 @@ async def share(order: dict, *, partner_name: str, partner_email: str, quantity:
     partner_name, partner_email = partner_name.strip(), partner_email.strip()
     if not partner_name or "@" not in partner_email:
         raise ValueError("Add the partner's business name and email.")
-    available = m["quantity"] - shared_quantity(order) - 1  # Maya keeps at least one
+    available = m["quantity"] - shared_quantity(order) - 1  # Sam keeps at least one
     if available < 1:
         raise ValueError("Nothing left to share on this order.")
     if not 1 <= quantity <= available:
@@ -107,7 +107,7 @@ async def share(order: dict, *, partner_name: str, partner_email: str, quantity:
             "invoice_date": time.strftime("%Y-%m-%d"),
             "note": (note or f"Your share of a bulk order of {m['quantity']} {m['item']} from {w['seller_name']}, "
                      "negotiated and held through PayPal by Procuro.")[:4000],
-            "invoicer_business_name": "Maya's Bakery (via Procuro)",
+            "invoicer_business_name": "Sam's Coffee (via Procuro)",
             "primary_recipients": [{"billing_info": {"business_name": partner_name, "email_address": partner_email}}],
             "items": [{
                 "name": f"{m['item']} (share of order {order['id']})"[:200],

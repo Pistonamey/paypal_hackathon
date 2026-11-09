@@ -1,7 +1,7 @@
 // The Sellers board: a Bryntum Scheduler with one row per seller agent and a bar for every order
 // it's preparing, from the day production starts to delivery. Bars are coloured by where the
 // money is. Shaded days are when a seller has no free production slot; that's what pushes its
-// next quote later, so the agents read this schedule, not just Maya.
+// next quote later, so the agents read this schedule, not just Sam.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BryntumScheduler } from "@bryntum/scheduler-react-thin";

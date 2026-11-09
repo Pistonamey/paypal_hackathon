@@ -276,7 +276,7 @@ class MockPayPalClient:
         aid = f"AUTH-{uuid.uuid4().hex[:10].upper()}"
         self.auths[aid] = {"amount": amount, "status": "CREATED"}
         return {"authorization_id": aid, "status": "CREATED", "amount": amount,
-                "expiration_time": None, "payer_email": "maya@example.com"}
+                "expiration_time": None, "payer_email": "sam@example.com"}
 
     async def create_order(self, *, reference_id, description, items, total, currency, return_url, cancel_url,
                            brand_name, vault_id=None) -> dict:
@@ -339,8 +339,8 @@ class MockPayPalClient:
             raise PayPalError("PayPal save PayPal (payment token) failed (422) TOKEN_NOT_APPROVED")
         tid = f"PTOKEN-{uuid.uuid4().hex[:10].upper()}"
         self.payment_tokens[tid] = {"setup": setup_token_id}
-        return {"payment_token_id": tid, "customer_id": "CUST-MOCK", "payer_email": "maya@example.com",
-                "payer_name": "Maya", "payer_id": "PAYERMOCK"}
+        return {"payment_token_id": tid, "customer_id": "CUST-MOCK", "payer_email": "sam@example.com",
+                "payer_name": "Sam", "payer_id": "PAYERMOCK"}
 
     async def delete_payment_token(self, payment_token_id: str) -> None:
         self.payment_tokens.pop(payment_token_id, None)
