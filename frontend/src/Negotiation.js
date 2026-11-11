@@ -9,9 +9,9 @@ import { money, shortDate } from "./format";
 import { FeedSkeleton, Typing } from "./ui";
 import "./negotiation.css";
 
-// Categorical slots 1-3 of the validated palette (blue, orange, aqua), in the sellers' fixed order,
+// Seller colours that stay distinct on Matcha's sage paper (blue, orange, plum, teal, rose), in the sellers' fixed order,
 // so a seller keeps its colour on every screen.
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#6250d6", "#e87ba4"];
+const SERIES = ["#2f6db3", "#d9822b", "#7a4fa3", "#1f8a8a", "#c2457a"];
 const UPDATES = "updates";
 
 const SELLER_STATE = {

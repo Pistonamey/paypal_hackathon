@@ -1,10 +1,10 @@
 /* Negotiation: live offer chart + messenger (see Negotiation.js). */
 
 .nego { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
-.nego-empty { margin: 0; padding: 24px; color: var(--ink-soft); background: var(--sheet); border: 1.5px dashed var(--line); border-radius: 8px; }
+.nego-empty { margin: 0; padding: 24px; color: var(--ink-soft); background: var(--sheet); border: 1.5px dashed var(--line); border-radius: var(--radius); }
 
 /* ---- chart ---- */
-.offer-chart { position: relative; min-width: 0; margin: 0; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px 6px; }
+.offer-chart { position: relative; min-width: 0; margin: 0; background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 12px 14px 6px; }
 .oc-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; align-items: baseline; margin-bottom: 4px; }
 .oc-head b { font: 700 16px var(--display); margin-right: 10px; }
 .oc-head span { font-size: 13px; color: var(--ink-soft); }
@@ -15,7 +15,7 @@
 .oc-plot { width: 100%; min-width: 0; overflow: hidden; }
 .offer-chart svg { display: block; overflow: visible; }
 
-.oc-grid { stroke: #e6ebf0; stroke-width: 1; }
+.oc-grid { stroke: var(--tint-2); stroke-width: 1; }
 .oc-tick, .oc-axis { font: 11.5px var(--body); fill: var(--ink-soft); }
 .oc-ref { font: 700 11.5px var(--body); fill: var(--ink); }
 .oc-budget { stroke: var(--ink); stroke-width: 1.5; }
@@ -38,22 +38,22 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .oc-tip {
   position: absolute; z-index: 3; transform: translate(-50%, calc(-100% - 12px)); pointer-events: none;
   display: grid; gap: 1px; min-width: 150px; padding: 8px 10px; background: var(--ink); color: #fff; border-radius: 6px;
-  font-size: 12.5px; box-shadow: 0 6px 18px rgba(21, 37, 58, .25); white-space: nowrap;
+  font-size: 12.5px; box-shadow: 0 6px 18px rgba(22, 48, 31, .25); white-space: nowrap;
 }
 .oc-tip b { font-size: 13px; }
-.oc-tip span { color: #cfd9e5; }
+.oc-tip span { color: #cfe0d0; }
 
 /* ---- messenger ---- */
 .messenger {
-  display: grid; grid-template-columns: 270px 1fr; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px;
+  display: grid; grid-template-columns: 270px 1fr; background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--radius);
   overflow: hidden; height: max(420px, calc(100vh - 520px));
 }
-.convos { display: flex; flex-direction: column; border-right: 1px solid var(--line); overflow-y: auto; background: #f7f9fb; }
+.convos { display: flex; flex-direction: column; border-right: 1px solid var(--line); overflow-y: auto; background: var(--tint); }
 .convo {
   position: relative; display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 12px 14px;
-  background: none; border: 0; border-bottom: 1px solid #e6ebf0; cursor: pointer; border-left: 3px solid transparent;
+  background: none; border: 0; border-bottom: 1px solid var(--tint-2); cursor: pointer; border-left: 3px solid transparent;
 }
-.convo:hover { background: #eef2f7; }
+.convo:hover { background: var(--tint); }
 .convo.is-on { background: var(--sheet); border-left-color: var(--ink); }
 .convo.tone-off:not(.is-on) .convo-main { opacity: .65; }
 .avatar {
@@ -67,10 +67,10 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .convo-price { font: 800 14px var(--display); }
 .convo-sub { display: flex; gap: 6px; align-items: center; min-width: 0; }
 .convo-preview { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.chip { flex: none; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: #e3e8ee; color: var(--ink-soft); }
+.chip { flex: none; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--tint-2); color: var(--ink-soft); }
 .chip-busy { background: #e3ecf8; color: #1c4f8f; }
 .chip-ok { background: var(--held); color: var(--held-ink); }
-.chip-off { background: #eceff3; color: #6b7785; }
+.chip-off { background: var(--tint-2); color: var(--ink-soft); }
 .chip-win { background: var(--paid); color: #fff; }
 .badge {
   position: absolute; top: 10px; right: 10px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px;
@@ -91,13 +91,13 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .bub { max-width: 78%; padding: 9px 13px; border-radius: 14px; animation: rise .25s ease-out; }
 .bub p { margin: 0; }
 .bub-who { display: block; font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 2px; }
-.bub-theirs { justify-self: start; background: #eef2f7; border-bottom-left-radius: 4px; }
+.bub-theirs { justify-self: start; background: var(--tint); border-bottom-left-radius: 4px; }
 .bub-mine { justify-self: end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
-.bub-mine .bub-who { color: #b9c6d6; }
+.bub-mine .bub-who { color: var(--forest-soft); }
 .bub-event { justify-self: center; max-width: 92%; background: none; border: 1.5px dashed var(--line); font-size: 14px; border-radius: 10px; }
 .bub.kind-payment { border: 1.5px solid var(--held-ink); background: #fff8dc; color: var(--ink); }
 .bub.kind-error { border-color: var(--problem); background: #fbe6e1; }
-.bub-offer { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(21, 37, 58, .12); font-weight: 700; font-size: 13.5px; }
+.bub-offer { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(22, 48, 31, .12); font-weight: 700; font-size: 13.5px; }
 .bub-mine .bub-offer { border-top-color: rgba(255, 255, 255, .2); }
 .bub .evidence img { width: 88px; height: 88px; object-fit: cover; border-radius: 6px; display: block; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -132,7 +132,7 @@ g.is-out .oc-label, g.is-out .oc-label-sub { opacity: .55; }
 .oc-panels { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 12px; min-width: 0; }
 .oc-panels.is-stacked { grid-template-columns: minmax(0, 1fr); }
 .oc-panel {
-  min-width: 0; border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; background: var(--sheet);
+  min-width: 0; border: 1.5px solid var(--line); border-radius: var(--radius); cursor: pointer; background: var(--sheet);
   transition: border-color .15s, box-shadow .15s; overflow: hidden;
 }
 .oc-panel:hover { border-color: var(--ink-soft); }

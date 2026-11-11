@@ -5,7 +5,7 @@
 
 .rc-head {
   display: flex; flex-wrap: wrap; gap: 14px 24px; justify-content: space-between; align-items: flex-start;
-  background: var(--sheet); border: 1.5px solid var(--paid); border-left-width: 6px; border-radius: 8px; padding: 14px 18px;
+  background: var(--sheet); border: 1.5px solid var(--paid); border-left-width: 6px; border-radius: var(--radius); padding: 14px 18px;
 }
 .rc-head-bad { border-color: var(--problem); }
 .rc-head h2 { font: 700 19px/1.25 var(--display); margin: 0 0 4px; }
@@ -38,7 +38,7 @@
 .rc-live h3 { margin: 0; font: 700 16px/1.2 var(--display); }
 .rc-live .btn-small { margin-left: 0; }
 .rc-loading { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 14px; color: var(--ink-soft); }
-.rc-status { font-size: 12px; font-weight: 700; background: #e9eef3; border-radius: 99px; padding: 1px 8px; }
+.rc-status { font-size: 12px; font-weight: 700; background: var(--tint-2); border-radius: 99px; padding: 1px 8px; }
 
 /* the chain of steps */
 .rc-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
@@ -51,7 +51,7 @@
   font: 700 15px/1 var(--display); position: relative; z-index: 1;
 }
 .rc-step-bad .rc-num { background: var(--problem); }
-.rc-body { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
+.rc-body { background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
 .rc-step-bad .rc-body { border-color: var(--problem); background: #fdf3f1; }
 .rc-step-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; justify-content: space-between; }
 .rc-step-head h3 { margin: 0; font: 700 16.5px/1.25 var(--display); }
@@ -75,17 +75,17 @@
   border-left: 3px solid #0070e0; background: #eef5fd; padding: 6px 10px; border-radius: 0 6px 6px 0;
 }
 .rc-pp-capture { border-left-color: var(--paid); background: #e8f4ee; }
-.rc-pp-void { border-left-color: var(--back); background: #eef3f9; }
+.rc-pp-void { border-left-color: var(--back); background: var(--tint); }
 .rc-pp-label { font-weight: 700; }
 .rc-pp-rid { color: var(--ink-soft); }
 .rc-pp a { font-weight: 700; color: var(--focus); }
 
 .rc-raw summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--focus); }
 .rc-raw pre {
-  margin: 6px 0 0; max-height: 280px; overflow: auto; background: #15253a; color: #e6edf5; border-radius: 6px;
+  margin: 6px 0 0; max-height: 280px; overflow: auto; background: var(--ink); color: var(--tint-2); border-radius: 6px;
   padding: 10px 12px; font: 12px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
-.rc-foot code { word-break: normal; overflow-wrap: anywhere; font-size: 12.5px; background: #e3e8ee; padding: 1px 5px; border-radius: 4px; }
+.rc-foot code { word-break: normal; overflow-wrap: anywhere; font-size: 12.5px; background: var(--tint-2); padding: 1px 5px; border-radius: 4px; }
 
 @media (max-width: 560px) {
   .rc-step { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }

@@ -121,7 +121,7 @@ export default function App() {
     <div className={`app ${view !== "orders" ? "app-wide" : ""}`}>
       <header className="topbar">
         <button className="wordmark" onClick={reset}>Procuro</button>
-        <p className="topbar-note">Your agent buys within your rules. PayPal holds the money until you're happy.</p>
+        <p className="topbar-note">Agent-to-agent buying over A2A · signed with AP2 · paid through PayPal</p>
         <nav className="views" aria-label="Sections">
           <button className={`tab ${view === "orders" ? "tab-on" : ""}`} onClick={() => showView("orders")}
             aria-current={view === "orders" ? "page" : undefined}>Orders</button>
@@ -195,7 +195,11 @@ function Start({ onStart, onOpen, wallet, onWallet, onError, onWalletRetry }) {
 
   return (
     <main className="start">
-      <h1 className="start-title">Tell your agent what you need, and what it's allowed to spend.</h1>
+      <h1 className="start-title">Send your agent to negotiate with theirs.</h1>
+      <p className="start-sub">
+        Seller agents run on their own servers. They meet yours over A2A, every deal is signed with AP2, and PayPal
+        holds the money until the goods arrive.
+      </p>
       <div className="start-grid">
         <div className="start-left">
         <form onSubmit={submit} className="mandate-form">

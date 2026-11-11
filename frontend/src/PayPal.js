@@ -185,7 +185,7 @@ function QrCode({ value, png }) {
   const [src, setSrc] = useState(png ? `data:image/png;base64,${png}` : null);
   useEffect(() => {
     if (png || !value) return;
-    QRCode.toDataURL(value, { margin: 1, width: 180, color: { dark: "#15253a", light: "#ffffff" } })
+    QRCode.toDataURL(value, { margin: 1, width: 180, color: { dark: "#16301f", light: "#ffffff" } })
       .then(setSrc)
       .catch(() => setSrc(null));
   }, [value, png]);
